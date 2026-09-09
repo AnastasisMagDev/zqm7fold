@@ -1,0 +1,2739 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MODULE 02 — Equation Solver</title>
+<!-- Plotly loaded from CDN for graph functionality -->
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js" defer></script>
+<!-- KaTeX loaded from CDN for math typesetting. Its stylesheet is injected
+     dynamically from the inline <script> below instead of a <link> tag here,
+     because the app orchestrator's module loader only picks up <style> blocks
+     and <script> tags from a module — a <link rel="stylesheet"> in <head>
+     would be silently dropped when this module runs inside the full app. -->
+<script src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.js" defer></script>
+<style>
+/* ── SHARED BASE CSS ── */
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;}
+html{background:#0f172a;min-height:100%;}
+body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#1a1f3a 100%);min-height:100dvh;min-height:100vh;color:white;overflow-x:hidden;}
+body::before,body::after{content:'';position:fixed;border-radius:50%;pointer-events:none;z-index:0;}
+body::before{width:420px;height:420px;background:radial-gradient(circle,rgba(99,102,241,0.09) 0%,transparent 70%);top:-80px;left:-80px;}
+body::after{width:360px;height:360px;background:radial-gradient(circle,rgba(168,85,247,0.07) 0%,transparent 70%);bottom:40px;right:-60px;}
+.screen{display:none;padding:20px;padding-bottom:170px;min-height:100dvh;min-height:100vh;position:relative;z-index:1;}
+.screen.active{display:block;animation:screenIn 0.5s cubic-bezier(0.2,0.8,0.2,1) both;}
+@keyframes screenIn{from{opacity:0;transform:scale3d(0.96,0.96,1) translateY(10px);}to{opacity:1;transform:scale3d(1,1,1) translateY(0);}}
+.header{text-align:center;padding:40px 20px 20px;}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.logo-icon{width:48px;height:48px;background:linear-gradient(135deg,#6366f1,#a855f7);border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.8rem;color:#fff;box-shadow:0 8px 24px rgba(99,102,241,0.3);position:relative;overflow:hidden;}
+.logo-icon::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(45deg,transparent 30%,rgba(255,255,255,0.1) 50%,transparent 70%);animation:shimmer 3s infinite;}
+@keyframes shimmer{0%{transform:translate(-100%,-100%);}100%{transform:translate(100%,100%);}}
+.logo-text{font-size:2.5rem;font-weight:700;background:linear-gradient(135deg,#fff,#e2e8f0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.logo span{background:linear-gradient(135deg,#6366f1,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.subtitle{color:#94a3b8;font-size:0.95rem;margin-top:5px;}
+.back-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#94a3b8;font-size:0.95rem;padding:10px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;margin-bottom:20px;transition:all 0.2s cubic-bezier(0.34,1.56,0.64,1);}
+.back-btn:hover{color:#e2e8f0;background:rgba(255,255,255,0.1);transform:translateX(-3px);}
+::-webkit-scrollbar{width:8px;}::-webkit-scrollbar-track{background:rgba(15,23,42,0.3);}::-webkit-scrollbar-thumb{background:rgba(71,85,105,0.5);border-radius:4px;}
+/* Shared tool styles */
+.unit-converter-container{max-width:520px;margin:0 auto;background:rgba(15,23,42,0.4);border:1px solid rgba(71,85,105,0.3);border-radius:25px;padding:30px;}
+.unit-title{font-size:1.5rem;font-weight:600;margin-bottom:20px;}
+.tool-input-group{margin-bottom:15px;}
+.tool-label{color:#94a3b8;font-size:0.9rem;margin-bottom:8px;display:block;}
+.tool-input{width:100%;background:rgba(30,41,59,0.6);border:1px solid rgba(71,85,105,0.3);border-radius:12px;padding:15px;font-size:1.05rem;color:white;outline:none;letter-spacing:0.5px;}
+.tool-input:focus{border-color:rgba(99,102,241,0.7);box-shadow:0 0 0 3px rgba(99,102,241,0.15);}
+.tool-result{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:15px;padding:20px;margin-top:15px;}
+
+/* ── Equation Solver CSS ── */
+#eq-plot{border:1px solid rgba(99,102,241,0.18);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.03),0 18px 45px rgba(2,6,23,0.22);overflow:hidden!important;}
+.graph-fullscreen-modal{position:fixed;inset:0;z-index:99000;background:rgba(2,6,23,0.93);opacity:0;visibility:hidden;pointer-events:none;transition:opacity 240ms ease,visibility 240ms ease;touch-action:none;}
+.graph-fullscreen-modal.active{opacity:1;visibility:visible;pointer-events:auto;}
+body.graph-modal-open{overflow:hidden;}
+.graph-fullscreen-shell{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.92);transition:transform 280ms cubic-bezier(0.22,1,0.36,1);z-index:99001;width:min(1400px,94vw);height:min(900px,92vh);display:flex;flex-direction:column;box-sizing:border-box;padding:12px;overflow:hidden;background:#000;border:1px solid rgba(129,140,248,0.3);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,0.85),0 0 0 1px rgba(99,102,241,0.12);}
+.graph-fullscreen-modal.active .graph-fullscreen-shell{transform:translate(-50%,-50%) scale(1);}
+.graph-fullscreen-shell{cursor:grab;}
+.graph-fullscreen-shell:active{cursor:grabbing;}
+#fullscreen-plot{cursor:default;}
+#fullscreen-content{cursor:default;}
+.graph-fullscreen-header{flex:0 0 auto;display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:12px;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.06);cursor:grab;user-select:none;-webkit-user-select:none;}
+.graph-fullscreen-header:active{cursor:grabbing;}
+.graph-fullscreen-title{flex:1;min-width:0;font-size:clamp(0.9rem,2.2vw,1.35rem);font-weight:800;letter-spacing:0.03em;background:linear-gradient(135deg,#e0e7ff,#a78bfa,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.graph-fullscreen-subtitle{color:#64748b;font-size:0.78rem;margin-top:2px;}
+.graph-fullscreen-close{flex:0 0 auto;width:40px;height:40px;border-radius:11px;border:1px solid rgba(248,113,113,0.3);background:rgba(120,28,28,0.28);color:#fca5a5;font-size:1.15rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 160ms ease,transform 160ms ease;-webkit-tap-highlight-color:transparent;}
+.graph-fullscreen-close:hover{background:rgba(239,68,68,0.36);transform:scale(1.07);}
+.graph-fullscreen-close:active{transform:scale(0.92);}
+#fullscreen-content{flex:1 1 0;min-height:0;display:flex;flex-direction:column;}
+#fullscreen-plot{flex:1 1 0;min-height:0;width:100%;border-radius:12px;overflow:hidden;background:rgba(6,12,32,0.65);border:1px solid rgba(99,102,241,0.13);}
+#eq-result-panel{overflow:hidden!important;}
+#eq-plot{position:relative;z-index:0;}
+@media(max-width:480px){#eq-plot{height:260px!important;margin-top:28px!important;}}
+@media(min-width:481px) and (max-width:1024px){#eq-plot{height:285px!important;margin-top:28px!important;}}
+@media(min-width:1025px){#eq-plot{height:320px!important;margin-top:36px!important;}}
+.eq-chip{padding:6px 14px;border-radius:20px;border:1px solid rgba(99,102,241,0.35);background:rgba(99,102,241,0.08);color:#a5b4fc;font-size:0.78rem;cursor:pointer;transition:all 0.2s cubic-bezier(0.34,1.56,0.64,1);}
+.eq-chip:hover{background:rgba(99,102,241,0.2);transform:translateY(-2px);}
+.eq-chip.active{background:rgba(99,102,241,0.3);border-color:rgba(99,102,241,0.7);color:#e0e7ff;box-shadow:0 0 12px rgba(99,102,241,0.25);}
+.eq-example{padding:5px 11px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:#94a3b8;font-size:0.76rem;cursor:pointer;font-family:monospace;transition:all 0.18s cubic-bezier(0.34,1.56,0.64,1);}
+.eq-example:hover{background:rgba(99,102,241,0.15);color:#c7d2fe;border-color:rgba(99,102,241,0.3);transform:translateY(-2px);}
+.eq-block{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 16px;margin-top:10px;font-size:0.83rem;color:#94a3b8;line-height:1.7;font-family:monospace;}
+.eq-answer{font-size:1.6rem;font-weight:800;color:#ffffff;text-align:center;margin:6px 0;padding:10px 14px;background:rgba(99,102,241,0.22);border:1px solid rgba(129,140,248,0.4);border-radius:12px;text-shadow:0 0 18px rgba(167,139,250,0.6);}
+.eq-check{color:#34d399;}
+.eq-warn{color:#fbbf24;}
+.eq-nosol{color:#f87171;}
+.eq-muted-label{font-size:0.78rem;opacity:0.6;margin-bottom:6px;}
+.eq-range{width:100%;}
+.eq-slider-readout{margin-top:8px;}
+.eq-slider-block{margin-top:14px;}
+.eq-section-block{margin-top:10px;}
+.eq-chip-note{cursor:default;}
+@media(max-width:480px){.screen{padding:15px;padding-bottom:140px;}.unit-converter-container{padding:20px;}}
+
+/* ── Light-theme contrast overrides (auto-added) ── */
+body.theme-light .back-btn{background:#1e293b;border-color:#334155;color:#f1f5f9;}
+body.theme-light .back-btn:hover{background:#334155;border-color:#475569;color:#ffffff;}
+body.theme-light .subtitle{color:#475569;}
+body.theme-light .logo-text{background:linear-gradient(135deg,#1e293b,#334155);-webkit-background-clip:text;background-clip:text;}
+body.theme-light .unit-converter-container{background:rgba(15,23,42,0.88);}
+body.theme-light .tool-input{background:rgba(30,41,59,0.88);}
+body.theme-light .eq-answer{background:rgba(99,102,241,0.88);}
+</style>
+</head>
+<body>
+
+<!-- Fullscreen Graph Modal -->
+<div id="fullscreen-modal" class="graph-fullscreen-modal" role="dialog" aria-modal="true" aria-labelledby="graph-fullscreen-title" aria-hidden="true">
+    <div class="graph-fullscreen-shell">
+        <div class="graph-fullscreen-header">
+            <div style="min-width:0;flex:1;">
+                <div id="graph-fullscreen-title" class="graph-fullscreen-title">Graph Visualization</div>
+                <div class="graph-fullscreen-subtitle">f(x) = left − right, roots and reference axes</div>
+            </div>
+            <button class="graph-fullscreen-close" onclick="closeFullScreen()" aria-label="Close">✕</button>
+        </div>
+        <div id="fullscreen-content"><div id="fullscreen-plot"></div></div>
+    </div>
+</div>
+
+<!-- Equation Solver Screen -->
+<div id="scr-equation" class="screen active">
+    <div class="header">
+        <div class="logo"><div class="logo-icon">∑</div><div class="logo-text">Multi<span>Calc</span></div></div>
+        <div class="subtitle t-header-sub">Math • Physics • Units • Currency</div>
+    </div>
+    <button class="back-btn" type="button">← <span class="t-back">Πίσω</span></button>
+
+    <div class="unit-converter-container" style="max-width:560px;">
+        <div class="unit-title">✏️ <span id="eq-solver-title-text">Equation &amp; Inequality Solver</span></div>
+
+        <!-- Type chips -->
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px;">
+            <button class="eq-chip active" onclick="setEqExample('linear')"    id="chip-linear">Linear</button>
+            <button class="eq-chip"        onclick="setEqExample('quadratic')" id="chip-quadratic">Quadratic</button>
+            <button class="eq-chip"        onclick="setEqExample('cubic')"     id="chip-cubic">Cubic</button>
+            <button class="eq-chip"        onclick="setEqExample('absolute')"  id="chip-abs">|Absolute|</button>
+            <button class="eq-chip"        onclick="setEqExample('rational')"  id="chip-rat">Rational</button>
+            <button class="eq-chip"        onclick="setEqExample('inequality')" id="chip-ineq">Inequality</button>
+            <button class="eq-chip"        onclick="setEqExample('system')"    id="chip-sys">System 2×2</button>
+            <button class="eq-chip"        onclick="setEqExample('system3')"   id="chip-sys3">System 3×3</button>
+            <button class="eq-chip"        onclick="setEqExample('trig')"      id="chip-trig">Trigonometric</button>
+            <button class="eq-chip"        onclick="setEqExample('exp')"       id="chip-exp">Exponential</button>
+            <button class="eq-chip"        onclick="setEqExample('log')"       id="chip-log">Logarithmic</button>
+            <button class="eq-chip"        onclick="setEqExample('poly')"      id="chip-poly">Polynomial</button>
+            <button class="eq-chip"        onclick="setEqExample('param')"     id="chip-param">Parametric (λ)</button>
+        </div>
+
+        <div class="tool-input-group">
+            <label class="tool-label" id="eq-main-label" for="eq-input">Enter equation · e.g. <em>2x + 4 = 10</em></label>
+            <input type="text" id="eq-input" class="tool-input" placeholder="2x + 4 = 10">
+        </div>
+        <div id="eq-second-row" class="tool-input-group" style="display:none;">
+            <label class="tool-label" id="eq-label2" for="eq-input2">Second equation · e.g. <em>x - y = 1</em></label>
+            <input type="text" id="eq-input2" class="tool-input" placeholder="x - y = 1">
+        </div>
+        <div id="eq-third-row" class="tool-input-group" style="display:none;">
+            <label class="tool-label" for="eq-input3">Third equation · e.g. <em>x + y + z = 6</em></label>
+            <input type="text" id="eq-input3" class="tool-input" placeholder="x + y + z = 6">
+        </div>
+
+        <!-- Symbol helpers -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
+            <button class="eq-example" onclick="insertEqSym('²')">x²</button>
+            <button class="eq-example" onclick="insertEqSym('³')">x³</button>
+            <button class="eq-example" onclick="insertEqSym('√(')">√</button>
+            <button class="eq-example" onclick="insertEqSym('|')">|·|</button>
+            <button class="eq-example" onclick="insertEqSym('≥')">≥</button>
+            <button class="eq-example" onclick="insertEqSym('≤')">≤</button>
+            <button class="eq-example" onclick="insertEqSym('λ')">λ</button>
+        </div>
+
+        <!-- Dynamic quick examples -->
+        <div class="eq-section-block">
+            <div style="font-size:0.72rem;opacity:0.45;margin-bottom:7px;text-transform:uppercase;letter-spacing:1px;" id="eq-quick-label">Quick examples</div>
+            <div id="eq-quick-examples-dynamic" style="display:flex;gap:7px;flex-wrap:wrap;"></div>
+        </div>
+
+        <!-- Random exercise generator -->
+        <div class="eq-section-block">
+            <button type="button" class="eq-example" id="eq-random-btn" onclick="generateRandomExercise()" style="border-color:rgba(251,191,36,0.35);color:#fbbf24;">🎲 <span id="eq-random-btn-text">Random Exercise</span></button>
+            <div id="eq-exercise-hint" style="display:none;font-size:0.75rem;opacity:0.65;margin-top:6px;"></div>
+        </div>
+
+        <!-- Solve button -->
+        <button id="btn-solve-eq" onclick="solveEquationImpl()" style="margin-top:14px;width:100%;padding:14px;background:linear-gradient(135deg,#6366f1,#a855f7);border:none;color:#fff;border-radius:14px;font-size:1.05rem;font-weight:700;cursor:pointer;letter-spacing:0.5px;box-shadow:0 6px 20px rgba(99,102,241,0.35);transition:all 0.2s;">
+            🧮 <span id="eq-solve-btn-text">Solve</span>
+        </button>
+
+        <!-- Result panel -->
+        <div id="eq-result-panel" style="display:none;margin-top:15px;background:linear-gradient(135deg,rgba(30,41,59,0.7),rgba(15,23,42,0.8));border:1px solid rgba(99,102,241,0.3);border-radius:20px;padding:24px;backdrop-filter:blur(16px);box-shadow:0 20px 50px rgba(0,0,0,0.3),inset 0 1px 1px rgba(255,255,255,0.05);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:15px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:10px;height:10px;background:#6366f1;border-radius:50%;box-shadow:0 0 10px #6366f1;"></div>
+                    <div style="font-size:0.9rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:1.5px;">Advanced Solution Analysis</div>
+                </div>
+                <button onclick="toggleFullScreenPlot()" style="background:linear-gradient(135deg,#6366f1,#4f46e5);border:none;color:#fff;padding:8px 16px;border-radius:10px;cursor:pointer;font-size:0.85rem;font-weight:600;transition:all 0.3s;box-shadow:0 4px 12px rgba(99,102,241,0.2);">⛶ <span id="eq-graph-fullscreen-btn-text">Graph Full Screen</span></button>
+            </div>
+            <div id="eq-result" class="tool-result" style="background:transparent;padding:0;"></div>
+            <div id="eq-steps-container" style="display:block;margin-top:15px;padding:15px;background:rgba(0,0,0,0.25);border-radius:12px;border:1px solid rgba(99,102,241,0.15);">
+                <div style="font-size:0.85rem;font-weight:600;color:#fbbf24;margin-bottom:10px;">📋 Step-by-Step Solution</div>
+                <div id="eq-steps-content" style="font-size:0.85rem;line-height:1.8;color:#e2e8f0;"></div>
+            </div>
+            <div id="eq-plot" style="width:100%;max-width:100%;height:300px;margin-top:32px;border-radius:12px;overflow:visible;display:none;background:rgba(0,0,0,0.2);cursor:pointer;position:relative;" onclick="toggleFullScreenPlot()" tabindex="0" role="button" aria-label="Graph — click to fullscreen"></div>
+            <div id="eq-compare-box" style="display:none;margin-top:14px;">
+                <div id="eq-compare-label-text" class="eq-muted-label">Compare with:</div>
+                <div style="display:flex;gap:6px;">
+                    <input type="text" id="eq-compare-input" placeholder="e.g. x² - 1" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid rgba(99,102,241,0.25);background:rgba(0,0,0,0.25);color:#e2e8f0;font-size:0.85rem;" onkeydown="if(event.key==='Enter'){event.preventDefault();addCompareCurve();}">
+                    <button type="button" class="eq-example" id="eq-compare-add-btn" onclick="addCompareCurve()">Add</button>
+                </div>
+                <div id="eq-compare-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="fun-facts-slot"></div>
+</div>
+
+<script>
+/* ── Light-theme contrast guard ─────────────────────────────
+   Detects whether the currently active body background is a
+   light color (any theme, present or future) and toggles
+   body.theme-light so panels/text/back-btn switch to a closed,
+   readable palette. getComputedStyle always normalizes colors
+   to rgb()/rgba() — never hex — so we parse that, not hex.
+   Fully-transparent stops (alpha 0, e.g. body's own unset
+   background-color) are skipped so they don't drag the
+   average down as if they were a real black stop.
+   A MutationObserver on body's style attribute acts as the
+   "signal": whenever ANYTHING changes the body background
+   (theme picker, app boot, future code), every already-loaded
+   module reacts instantly, with no fixed timing assumptions. */
+function mcRelLuminanceRGB(r,g,b){
+    const lin=c=>{c/=255;return c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4);};
+    return 0.2126*lin(r)+0.7152*lin(g)+0.0722*lin(b);
+}
+function mcExtractRGB(str){
+    const out=[];
+    (str.match(/rgba?\([^)]+\)/g)||[]).forEach(m=>{
+        const n=m.match(/[\d.]+/g).map(Number);
+        if(n.length>=4 && n[3]===0) return;
+        out.push([n[0],n[1],n[2]]);
+    });
+    (str.match(/#[0-9a-fA-F]{6}/g)||[]).forEach(h=>{
+        out.push([parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]);
+    });
+    return out;
+}
+function mcCheckThemeLightness(){
+    const cs=getComputedStyle(document.body);
+    const str=(cs.backgroundImage&&cs.backgroundImage!=='none'?cs.backgroundImage:'')+' '+cs.backgroundColor;
+    const colors=mcExtractRGB(str);
+    if(!colors.length){document.body.classList.remove('theme-light');return;}
+    const avg=colors.reduce((s,[r,g,b])=>s+mcRelLuminanceRGB(r,g,b),0)/colors.length;
+    document.body.classList.toggle('theme-light',avg>0.18);
+}
+mcCheckThemeLightness();
+window.addEventListener('load',mcCheckThemeLightness);
+setTimeout(mcCheckThemeLightness,300);
+try{
+    new MutationObserver(mcCheckThemeLightness)
+        .observe(document.body,{attributes:true,attributeFilter:['style','class']});
+}catch(e){}
+
+/* ── Minimal MultiCalc namespace stub ── */
+var MultiCalc = {
+    state: { currentLang:'el', eqMode:'linear' },
+    data: {}
+};
+
+/* ── KaTeX setup ──────────────────────────────────────────────
+   1) Inject KaTeX's stylesheet via JS instead of a <link> tag in
+      <head> — the app orchestrator's module loader only picks up
+      <style> blocks and <script> tags from a module, so a <link>
+      would silently never appear when this module runs in-app.
+      This runs identically in standalone mode too (harmless
+      no-op re-check via the data attribute guard).
+   2) KX(tex, displayMode) renders one LaTeX string to an HTML
+      string via katex.renderToString(). Falls back to the raw
+      TeX source (still readable, just unstyled) if KaTeX hasn't
+      finished loading yet (a real possibility in-app: dynamically
+      inserted <script src> tags ignore `defer` and load async, so
+      a click made in the first instant after opening this screen
+      could in principle beat the download) or if a given string
+      fails to parse for any reason — this NEVER throws upward
+      into a solver function. ── */
+(function injectKatexCss(){
+    if (document.querySelector('link[data-katex-css]')) return;
+    var l = document.createElement('link');
+    l.rel = 'stylesheet';
+    l.href = 'https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.css';
+    l.setAttribute('data-katex-css', '');
+    document.head.appendChild(l);
+})();
+function KX(tex, displayMode) {
+    if (typeof katex === 'undefined' || !tex) return tex || '';
+    try {
+        return katex.renderToString(String(tex), {throwOnError:false, displayMode:!!displayMode, strict:false});
+    } catch(e) {
+        return String(tex);
+    }
+}
+
+/* ── T() translation function with ALL equation keys (el/en/es) ── */
+var _eqTranslations = {
+    el: {
+        verification:'Επαλήθευση', eqLinear:'Γραμμική', eq_step_prefix:'Βήμα',
+        graph_fx:'f(x) = αριστερά − δεξιά', graph_zero:'y = 0', eq_roots:'Ρίζες / τομές',
+        eq_equation:'εξίσωση', eq_inequality_word:'ανισότητα', graph_xaxis:'x', graph_yaxis:'f(x)',
+        eqCubicTitle: function(n){return 'Κυβική Εξίσωση — '+n+' πραγματικ'+(n===1?'ή ρίζα':'ές ρίζες');},
+        eqCubicNoRoots:'⚠️ Δεν βρέθηκαν πραγματικές ρίζες αριθμητικά', eqCubicIneqTitle:'Κυβική Ανισότητα',
+        eqCubicComplexNote:'Οι άλλες δύο ρίζες είναι μιγαδικές.',
+        eqSolvedNR:'Επίλυση αριθμητικά (Newton-Raphson)',
+        eqRationalTitle:'Ρητή Εξίσωση', eqRationalNoSol:'Χωρίς λύση (έλεγξε μη ορισμένες τιμές)',
+        eqExpTitle:'Εκθετική Εξίσωση', eqExpNoSol:'Δεν βρέθηκε λύση',
+        eqTrigTitle:'Τριγωνομετρική Εξίσωση',
+        eqPolyIneqTitle:'Πολυωνυμική Ανισότητα', eqExpIneqTitle:'Εκθετική Ανισότητα',
+        eqLogIneqTitle:'Λογαριθμική Ανισότητα', eqTrigIneqTitle:'Τριγωνομετρική Ανισότητα',
+        eqTrigWindowNote:'Λύση εντός [−2π, 2π] — η συνάρτηση είναι περιοδική, άρα επαναλαμβάνεται πέρα από αυτό το εύρος.',
+        eqExpNoReal:'Οι εκθετικές εξισώσεις ενδέχεται να μην έχουν πραγματικές λύσεις',
+        eqLogTitle:'Λογαριθμική Εξίσωση', eqLogNoSol:'Δεν βρέθηκε λύση', eqLogDomain:'Πεδίο ορισμού: x > 0',
+        eqPolyTitle: function(n){return 'Πολυωνυμική Εξίσωση — '+n+' πραγματικ'+(n===1?'ή ρίζα':'ές ρίζες');},
+        eqPolyNoSol:'Δεν βρέθηκε πραγματική λύση', eqPolyOnlyComplex:'Μόνο μιγαδικές ρίζες',
+        eqPolyMethod:'Αριθμητική επίλυση με τη μέθοδο Newton-Raphson',
+        eqInfSolutions:'∞ Άπειρες λύσεις', eqIdentityTrue:'Η εξίσωση είναι ταυτότητα, ισχύει για κάθε πραγματικό x.',
+        eqNoSolution:'Χωρίς λύση', eqContradiction:'Η εξίσωση είναι αντίφαση.',
+        eqSolutionSet:'Σύνολο λύσεων:', eqNoUniqSol:'Χωρίς μοναδική λύση', eqCramerRule:'Κανόνας Cramer', eqDeterminantZero:'Ορίζουσα = 0',
+        eqQuadTitle:'Τετραγωνική Εξίσωση', eqStandardForm:'Κανονική μορφή:', eqNoRealRootsDelta:'Καμία πραγματική ρίζα (Δ &lt; 0).',
+        eqDoubleRoot:'(διπλή ρίζα)',
+        eqCannotParse:'⚠️ Δεν αναγνωρίζεται: δοκίμασε <em>2x+4=10</em>, <em>x²-5x+6=0</em>, <em>x³-6x²+11x-6=0</em>, <em>|2x-3|=7</em>',
+        eqAbsNoSol:'Χωρίς λύση', eqAbsNegative:'|έκφραση| δεν μπορεί ποτέ να είναι αρνητική',
+        eqAbsIsZero:'expr = 0',
+        eqAbsCase1: function(inner,c){return 'Περίπτωση 1: '+inner+' = '+c;},
+        eqAbsCase2: function(inner,c){return 'Περίπτωση 2: '+inner+' = −'+c;},
+        eqAbsBetween:'Ανάμεσα στις δύο ρίζες', eqAbsOutside:'Εκτός των δύο ριζών',
+        eqAbsCannotSolve:'Δεν επιλύεται συμβολικά',
+        eqTrigNoSol:'Δεν βρέθηκε λύση', eqTrigNoReal:'Δεν υπάρχει λύση στο [−2π, 2π]',
+        eqLabelLinear:'Γραμμική · π.χ. <em>2x + 4 = 10</em>',
+        eqLabelQuadratic:'Τετραγωνική · π.χ. <em>x² − 5x + 6 = 0</em>',
+        eqLabelCubic:'Κυβική · π.χ. <em>x³ − 6x² + 11x − 6 = 0</em>',
+        eqLabelAbsolute:'Απόλυτη τιμή · π.χ. <em>|2x − 3| = 7</em>',
+        eqLabelRational:'Ρητή · π.χ. <em>(x+1)/(x−2) = 3</em>',
+        eqLabelInequality:'Ανισότητα · π.χ. <em>2x + 1 > 9</em>',
+        eqLabel1st:'1η εξίσωση · π.χ. <em>2x + y = 7</em>',
+        eqLabel2nd:'2η εξίσωση · π.χ. <em>x − y = 1</em>',
+        eqLabel3rd:'3η εξίσωση · π.χ. <em>x + y + z = 6</em>',
+        eqLabelTrig:'Τριγωνομετρική · π.χ. <em>sin(x) = 0.5</em>',
+        eqLabelExp:'Εκθετική · π.χ. <em>2^x = 8</em>',
+        eqLabelLog:'Λογαριθμική · π.χ. <em>log(x) = 2</em>',
+        eqLabelPoly:'Πολυωνυμική · π.χ. <em>x⁴ − 5x² + 4 = 0</em>',
+        eqTypeSeparateHint:'Πληκτρολογήστε κάθε εξίσωση ξεχωριστά.',
+        eqNoStepsYet:'Λύσε μια εξίσωση για να δεις αναλυτικά βήματα.',
+        eqQuickExamples:'Γρήγορα παραδείγματα',
+        eqSolverTitle:'Επίλυση Εξισώσεων & Ανισοτήτων',
+        eqSolveBtn:'Επίλυση',
+        eqGraphFullscreenBtn:'Πλήρης Οθόνη Γραφήματος',
+        eqGraphModalTitle:'Οπτικοποίηση Γραφήματος',
+        eqGraphModalSubtitle:'f(x) = αριστερά − δεξιά, ρίζες και άξονες αναφοράς',
+        eqChipLinear:'Γραμμική', eqChipQuadratic:'Τετραγωνική', eqChipCubic:'Κυβική',
+        eqChipAbsolute:'|Απόλυτη|', eqChipRational:'Ρητή', eqChipInequality:'Ανισότητα',
+        eqChipSystem2:'Σύστημα 2×2', eqChipSystem3:'Σύστημα 3×3', eqChipTrig:'Τριγωνομετρική',
+        eqChipExp:'Εκθετική', eqChipLog:'Λογαριθμική', eqChipPoly:'Πολυωνυμική',
+        eqChipParam:'Παραμετρική (λ)', eqLabelParam:'Παραμετρική · π.χ. <em>(λ-2)x + 3 = λ + 1</em>',
+        eqParamTitle:'Γραμμική Εξίσωση με Παράμετρο', eqParamGeneralCase:'Γενική περίπτωση', eqParamSpecialCase:'Ειδική περίπτωση',
+        eqParamAlwaysUnique:'Μοναδική λύση για κάθε τιμή του λ', eqParamImpossible:'Αδύνατη (καμία λύση)',
+        eqParamNoXTerm:'Ο συντελεστής του x είναι πάντα 0 — δεν πρόκειται για εξίσωση ως προς x.',
+        eqParamNoXAlwaysIdentity:'Ο συντελεστής του x είναι πάντα 0, αλλά η εξίσωση ισχύει για κάθε x (ταυτότητα).',
+        eqParamNotSupported:'Αυτή η μορφή εξάρτησης από το λ δεν υποστηρίζεται προς το παρόν (έως 2ου βαθμού ως προς λ).',
+        eqParamOnlyEquation:'Η παραμετρική λειτουργία υποστηρίζει προς το παρόν μόνο εξισώσεις (=), όχι ανισότητες.',
+        eqParamSliderLabel:'Σύρε για να δεις πώς αλλάζει η λύση',
+        eqParamQuadTitle:'Δευτεροβάθμια Εξίσωση με Παράμετρο', eqParamTwoRootsAlways:'Δύο πραγματικές ρίζες',
+        eqParamQuadAlwaysDouble:'Πάντα διπλή ρίζα (Δ(λ) ≡ 0 για κάθε λ)',
+        eqParamSystemTitle:'Παραμετρικό Σύστημα', eqParamSystemAlwaysDependent:'Αόριστο (άπειρες λύσεις) για κάθε τιμή του λ',
+        eqParamSystemNotSupported3:'Παραμετρικά συστήματα 3×3 δεν υποστηρίζονται προς το παρόν.',
+        eqCompareLabel:'Σύγκριση με:', eqComparePlaceholder:'π.χ. x² - 1', eqCompareAdd:'Προσθήκη',
+        eqCompareMax:'Έως 2 καμπύλες σύγκρισης.', eqCompareInvalid:'Μη έγκυρη έκφραση.',
+        eqIntersections:'Σημεία τομής', eqExactPoint:'Ακριβές σημείο', eqIntersectionPoint:'Σημείο τομής',
+        eqRandomExercise:'Τυχαία Άσκηση', eqExerciseHint:'🎲 Δημιουργήθηκε τυχαία άσκηση — πάτησε «Λύση» όταν είσαι έτοιμος/η.',
+        eqLocalMax:'Τοπικό μέγιστο', eqLocalMin:'Τοπικό ελάχιστο',
+        eqRationalIneqTitle:'Ρητή Ανισότητα', eqRationalUndefinedAt:'Απροσδιόριστο στο',
+        eqNoSolutionSet:'Καμία λύση (κενό σύνολο)',
+    },
+    en: {
+        verification:'Verification', eqLinear:'Linear', eq_step_prefix:'Step',
+        graph_fx:'f(x) = left − right', graph_zero:'y = 0', eq_roots:'Roots / intersections',
+        eq_equation:'equation', eq_inequality_word:'inequality', graph_xaxis:'x', graph_yaxis:'f(x)',
+        eqCubicTitle: function(n){return 'Cubic Equation — '+n+' real root'+(n===1?'':'s');},
+        eqCubicNoRoots:'⚠️ No real roots found numerically', eqCubicIneqTitle:'Cubic Inequality',
+        eqCubicComplexNote:'The other two roots are complex.',
+        eqSolvedNR:'Solved numerically (Newton-Raphson)',
+        eqRationalTitle:'Rational Equation', eqRationalNoSol:'No solution (check for undefined values)',
+        eqExpTitle:'Exponential Equation', eqExpNoSol:'No solution found',
+        eqTrigTitle:'Trigonometric Equation',
+        eqPolyIneqTitle:'Polynomial Inequality', eqExpIneqTitle:'Exponential Inequality',
+        eqLogIneqTitle:'Logarithmic Inequality', eqTrigIneqTitle:'Trigonometric Inequality',
+        eqTrigWindowNote:'Solution within [−2π, 2π] — the function is periodic, so it repeats beyond this range.',
+        eqExpNoReal:'Exponential equations may not have real solutions',
+        eqLogTitle:'Logarithmic Equation', eqLogNoSol:'No solution found', eqLogDomain:'Domain: x > 0',
+        eqPolyTitle: function(n){return 'Polynomial Equation — '+n+' real root'+(n===1?'':'s');},
+        eqPolyNoSol:'No real solution found', eqPolyOnlyComplex:'This polynomial may have only complex roots',
+        eqPolyMethod:'Solved numerically using Newton-Raphson method',
+        eqInfSolutions:'∞ Infinite solutions', eqIdentityTrue:'The equation is an identity, true for all real x.',
+        eqNoSolution:'No solution', eqContradiction:'The equation is a contradiction.',
+        eqSolutionSet:'Solution set:', eqNoUniqSol:'No unique solution', eqCramerRule:"Cramer's rule", eqDeterminantZero:'Determinant = 0',
+        eqQuadTitle:'Quadratic Equation', eqStandardForm:'Standard:', eqNoRealRootsDelta:'No real roots (Δ &lt; 0).',
+        eqDoubleRoot:'(double root)',
+        eqCannotParse:'⚠️ Cannot parse: try <em>2x+4=10</em>, <em>x²-5x+6=0</em>, <em>x³-6x²+11x-6=0</em>, <em>|2x-3|=7</em>',
+        eqAbsNoSol:'No solution', eqAbsNegative:'|expression| can never be negative',
+        eqAbsIsZero:'expr = 0',
+        eqAbsCase1: function(inner,c){return 'Case 1: '+inner+' = '+c;},
+        eqAbsCase2: function(inner,c){return 'Case 2: '+inner+' = −'+c;},
+        eqAbsBetween:'Between the two roots', eqAbsOutside:'Outside the two roots',
+        eqAbsCannotSolve:'Cannot solve symbolically',
+        eqTrigNoSol:'No solution found', eqTrigNoReal:'The trigonometric equation has no solution in [−2π, 2π]',
+        eqLabelLinear:'Linear · e.g. <em>2x + 4 = 10</em>',
+        eqLabelQuadratic:'Quadratic · e.g. <em>x² − 5x + 6 = 0</em>',
+        eqLabelCubic:'Cubic · e.g. <em>x³ − 6x² + 11x − 6 = 0</em>',
+        eqLabelAbsolute:'Absolute value · e.g. <em>|2x − 3| = 7</em>',
+        eqLabelRational:'Rational · e.g. <em>(x+1)/(x−2) = 3</em>',
+        eqLabelInequality:'Inequality · e.g. <em>2x + 1 > 9</em>',
+        eqLabel1st:'1st equation · e.g. <em>2x + y = 7</em>',
+        eqLabel2nd:'2nd equation · e.g. <em>x − y = 1</em>',
+        eqLabel3rd:'3rd equation · e.g. <em>x + y + z = 6</em>',
+        eqLabelTrig:'Trigonometric · e.g. <em>sin(x) = 0.5</em>',
+        eqLabelExp:'Exponential · e.g. <em>2^x = 8</em>',
+        eqLabelLog:'Logarithmic · e.g. <em>log(x) = 2</em>',
+        eqLabelPoly:'Polynomial · e.g. <em>x^4 − 5x² + 4 = 0</em>',
+        eqTypeSeparateHint:'Type each equation separately.',
+        eqNoStepsYet:'Solve an equation to see detailed steps.',
+        eqQuickExamples:'Quick examples',
+        eqSolverTitle:'Equation & Inequality Solver',
+        eqSolveBtn:'Solve',
+        eqGraphFullscreenBtn:'Graph Full Screen',
+        eqGraphModalTitle:'Graph Visualization',
+        eqGraphModalSubtitle:'f(x) = left − right, roots and reference axes',
+        eqChipLinear:'Linear', eqChipQuadratic:'Quadratic', eqChipCubic:'Cubic',
+        eqChipAbsolute:'|Absolute|', eqChipRational:'Rational', eqChipInequality:'Inequality',
+        eqChipSystem2:'System 2×2', eqChipSystem3:'System 3×3', eqChipTrig:'Trigonometric',
+        eqChipExp:'Exponential', eqChipLog:'Logarithmic', eqChipPoly:'Polynomial',
+        eqChipParam:'Parametric (λ)', eqLabelParam:'Parametric · e.g. <em>(λ-2)x + 3 = λ + 1</em>',
+        eqParamTitle:'Linear Equation with Parameter', eqParamGeneralCase:'General case', eqParamSpecialCase:'Special case',
+        eqParamAlwaysUnique:'Unique solution for every value of λ', eqParamImpossible:'Impossible (no solution)',
+        eqParamNoXTerm:"The coefficient of x is always 0 — this isn't really an equation in x.",
+        eqParamNoXAlwaysIdentity:'The coefficient of x is always 0, but the equation holds for every x (an identity).',
+        eqParamNotSupported:"This kind of dependence on λ isn't supported yet (up to degree 2 in λ is supported).",
+        eqParamOnlyEquation:'Parametric mode currently only supports equations (=), not inequalities.',
+        eqParamSliderLabel:'Drag to see how the solution changes',
+        eqParamQuadTitle:'Quadratic Equation with Parameter', eqParamTwoRootsAlways:'Two real roots',
+        eqParamQuadAlwaysDouble:'Always a double root (Δ(λ) ≡ 0 for every λ)',
+        eqParamSystemTitle:'Parametric System', eqParamSystemAlwaysDependent:'Dependent (infinitely many solutions) for every value of λ',
+        eqParamSystemNotSupported3:"3×3 parametric systems aren't supported yet.",
+        eqCompareLabel:'Compare with:', eqComparePlaceholder:'e.g. x² - 1', eqCompareAdd:'Add',
+        eqCompareMax:'Up to 2 comparison curves.', eqCompareInvalid:'Invalid expression.',
+        eqIntersections:'Intersections', eqExactPoint:'Exact point', eqIntersectionPoint:'Intersection point',
+        eqRandomExercise:'Random Exercise', eqExerciseHint:'🎲 Random exercise generated — press Solve when ready.',
+        eqLocalMax:'Local max', eqLocalMin:'Local min',
+        eqRationalIneqTitle:'Rational Inequality', eqRationalUndefinedAt:'Undefined at',
+        eqNoSolutionSet:'No solution (empty set)',
+    },
+    es: {
+        verification:'Verificación', eqLinear:'Lineal', eq_step_prefix:'Paso',
+        graph_fx:'f(x) = izq − der', graph_zero:'y = 0', eq_roots:'Raíces / intersecciones',
+        eq_equation:'ecuación', eq_inequality_word:'inecuación', graph_xaxis:'x', graph_yaxis:'f(x)',
+        eqCubicTitle: function(n){return 'Ecuación Cúbica — '+n+' raíz'+(n===1?'':'ces')+' real'+(n===1?'':'es');},
+        eqCubicNoRoots:'⚠️ No se encontraron raíces reales numéricamente', eqCubicIneqTitle:'Inecuación Cúbica',
+        eqCubicComplexNote:'Las otras dos raíces son complejas.',
+        eqSolvedNR:'Resuelto numéricamente (Newton-Raphson)',
+        eqRationalTitle:'Ecuación Racional', eqRationalNoSol:'Sin solución (verificar valores no definidos)',
+        eqExpTitle:'Ecuación Exponencial', eqExpNoSol:'No se encontró solución',
+        eqTrigTitle:'Ecuación Trigonométrica',
+        eqPolyIneqTitle:'Inecuación Polinómica', eqExpIneqTitle:'Inecuación Exponencial',
+        eqLogIneqTitle:'Inecuación Logarítmica', eqTrigIneqTitle:'Inecuación Trigonométrica',
+        eqTrigWindowNote:'Solución dentro de [−2π, 2π] — la función es periódica, por lo que se repite más allá de este rango.',
+        eqExpNoReal:'Las ecuaciones exponenciales pueden no tener soluciones reales',
+        eqLogTitle:'Ecuación Logarítmica', eqLogNoSol:'No se encontró solución', eqLogDomain:'Dominio: x > 0',
+        eqPolyTitle: function(n){return 'Ecuación Polinómica — '+n+' raíz'+(n===1?'':'ces')+' real'+(n===1?'':'es');},
+        eqPolyNoSol:'No se encontró solución real', eqPolyOnlyComplex:'Este polinomio puede tener solo raíces complejas',
+        eqPolyMethod:'Resuelto numéricamente con el método Newton-Raphson',
+        eqInfSolutions:'∞ Infinitas soluciones', eqIdentityTrue:'La ecuación es una identidad, válida para todo x real.',
+        eqNoSolution:'Sin solución', eqContradiction:'La ecuación es una contradicción.',
+        eqSolutionSet:'Conjunto solución:', eqNoUniqSol:'Sin solución única', eqCramerRule:'Regla de Cramer', eqDeterminantZero:'Determinante = 0',
+        eqQuadTitle:'Ecuación Cuadrática', eqStandardForm:'Forma estándar:', eqNoRealRootsDelta:'Sin raíces reales (Δ &lt; 0).',
+        eqDoubleRoot:'(raíz doble)',
+        eqCannotParse:'⚠️ No se reconoce: prueba <em>2x+4=10</em>, <em>x²-5x+6=0</em>, <em>x³-6x²+11x-6=0</em>, <em>|2x-3|=7</em>',
+        eqAbsNoSol:'Sin solución', eqAbsNegative:'|expresión| nunca puede ser negativa',
+        eqAbsIsZero:'expr = 0',
+        eqAbsCase1: function(inner,c){return 'Caso 1: '+inner+' = '+c;},
+        eqAbsCase2: function(inner,c){return 'Caso 2: '+inner+' = −'+c;},
+        eqAbsBetween:'Entre las dos raíces', eqAbsOutside:'Fuera de las dos raíces',
+        eqAbsCannotSolve:'No se puede resolver simbólicamente',
+        eqTrigNoSol:'No se encontró solución', eqTrigNoReal:'La ecuación trigonométrica no tiene solución en [−2π, 2π]',
+        eqLabelLinear:'Lineal · ej. <em>2x + 4 = 10</em>',
+        eqLabelQuadratic:'Cuadrática · ej. <em>x² − 5x + 6 = 0</em>',
+        eqLabelCubic:'Cúbica · ej. <em>x³ − 6x² + 11x − 6 = 0</em>',
+        eqLabelAbsolute:'Valor absoluto · ej. <em>|2x − 3| = 7</em>',
+        eqLabelRational:'Racional · ej. <em>(x+1)/(x−2) = 3</em>',
+        eqLabelInequality:'Inecuación · ej. <em>2x + 1 > 9</em>',
+        eqLabel1st:'1ª ecuación · ej. <em>2x + y = 7</em>',
+        eqLabel2nd:'2ª ecuación · ej. <em>x − y = 1</em>',
+        eqLabel3rd:'3ª ecuación · ej. <em>x + y + z = 6</em>',
+        eqLabelTrig:'Trigonométrica · ej. <em>sin(x) = 0.5</em>',
+        eqLabelExp:'Exponencial · ej. <em>2^x = 8</em>',
+        eqLabelLog:'Logarítmica · ej. <em>log(x) = 2</em>',
+        eqLabelPoly:'Polinómica · ej. <em>x^4 − 5x² + 4 = 0</em>',
+        eqTypeSeparateHint:'Escribe cada ecuación por separado.',
+        eqNoStepsYet:'Resuelve una ecuación para ver los pasos detallados.',
+        eqQuickExamples:'Ejemplos rápidos',
+        eqSolverTitle:'Resolución de Ecuaciones e Inecuaciones',
+        eqSolveBtn:'Resolver',
+        eqGraphFullscreenBtn:'Pantalla Completa del Gráfico',
+        eqGraphModalTitle:'Visualización del Gráfico',
+        eqGraphModalSubtitle:'f(x) = izquierda − derecha, raíces y ejes de referencia',
+        eqChipLinear:'Lineal', eqChipQuadratic:'Cuadrática', eqChipCubic:'Cúbica',
+        eqChipAbsolute:'|Absoluto|', eqChipRational:'Racional', eqChipInequality:'Inecuación',
+        eqChipSystem2:'Sistema 2×2', eqChipSystem3:'Sistema 3×3', eqChipTrig:'Trigonométrica',
+        eqChipExp:'Exponencial', eqChipLog:'Logarítmica', eqChipPoly:'Polinómica',
+        eqChipParam:'Paramétrica (λ)', eqLabelParam:'Paramétrica · ej. <em>(λ-2)x + 3 = λ + 1</em>',
+        eqParamTitle:'Ecuación Lineal con Parámetro', eqParamGeneralCase:'Caso general', eqParamSpecialCase:'Caso especial',
+        eqParamAlwaysUnique:'Solución única para todo valor de λ', eqParamImpossible:'Imposible (sin solución)',
+        eqParamNoXTerm:'El coeficiente de x es siempre 0 — esto no es realmente una ecuación en x.',
+        eqParamNoXAlwaysIdentity:'El coeficiente de x es siempre 0, pero la ecuación se cumple para todo x (una identidad).',
+        eqParamNotSupported:'Este tipo de dependencia de λ aún no es compatible (se admite hasta grado 2 en λ).',
+        eqParamOnlyEquation:'El modo paramétrico actualmente solo admite ecuaciones (=), no desigualdades.',
+        eqParamSliderLabel:'Arrastra para ver cómo cambia la solución',
+        eqParamQuadTitle:'Ecuación Cuadrática con Parámetro', eqParamTwoRootsAlways:'Dos raíces reales',
+        eqParamQuadAlwaysDouble:'Siempre raíz doble (Δ(λ) ≡ 0 para todo λ)',
+        eqParamSystemTitle:'Sistema Paramétrico', eqParamSystemAlwaysDependent:'Indeterminado (infinitas soluciones) para todo valor de λ',
+        eqParamSystemNotSupported3:'Los sistemas paramétricos 3×3 aún no son compatibles.',
+        eqCompareLabel:'Comparar con:', eqComparePlaceholder:'ej. x² - 1', eqCompareAdd:'Añadir',
+        eqCompareMax:'Hasta 2 curvas de comparación.', eqCompareInvalid:'Expresión no válida.',
+        eqIntersections:'Intersecciones', eqExactPoint:'Punto exacto', eqIntersectionPoint:'Punto de intersección',
+        eqRandomExercise:'Ejercicio Aleatorio', eqExerciseHint:'🎲 Ejercicio aleatorio generado — pulsa «Resolver» cuando estés listo/a.',
+        eqLocalMax:'Máximo local', eqLocalMin:'Mínimo local',
+        eqRationalIneqTitle:'Inecuación Racional', eqRationalUndefinedAt:'Indefinido en',
+        eqNoSolutionSet:'Sin solución (conjunto vacío)',
+    }
+};
+
+/* ── T() — conditional definition to avoid clobbering the shared
+   runtime T() when this module runs inside MULTICALC-APP.html.
+   • Standalone mode (no global T yet): define local T() as before.
+   • App mode (MODULE-01 already defined T()): MERGE these equation-
+     specific keys into the shared MultiCalc.data.translations object
+     instead, so the ONE global T() can serve them too. This prevents
+     module load order from silently breaking other modules' T(). ── */
+if (typeof window.T !== 'function') {
+    window.T = function(key) {
+        var lang = MultiCalc.state.currentLang || 'el';
+        var t = _eqTranslations[lang] || _eqTranslations['en'];
+        return (t && t[key] !== undefined) ? t[key] : (_eqTranslations['en'][key] || key);
+    };
+} else {
+    Object.keys(_eqTranslations).forEach(function(lang) {
+        MultiCalc.data.translations[lang] = MultiCalc.data.translations[lang] || {};
+        var dst = MultiCalc.data.translations[lang];
+        var src = _eqTranslations[lang];
+        for (var k in src) { if (dst[k] === undefined) dst[k] = src[k]; }
+    });
+}
+
+/* ── Step Templates ── */
+MultiCalc.data.stepTemplates = {
+    el: {
+        step_recognize:      function(p){return 'Αναγνώριση τύπου: '+p.eqType+' '+p.kind+'.';},
+        step_move_terms:     function(p){return 'Μεταφορά όρων: f(x) = ('+p.left+') − ('+p.right+').';},
+        step_simplify:       function(p){return 'Απλοποίηση: f(x) = '+p.expr+'.';},
+        step_separate:       function(p){return 'Χωρισμός: '+p.a+'x = '+p.negB+'.';},
+        step_divide:         function(p){return 'Διαίρεση: x = '+p.negB+' ÷ '+p.a+'.';},
+        step_ineq_flip:      function(p){return 'Αντιστροφή ('+p.a+'<0): '+p.op+' → '+p.newOp+'.';},
+        step_ineq_keep:      function(){return 'Κατεύθυνση ανισότητας παραμένει ίδια.';},
+        step_result:         function(p){return 'Αποτέλεσμα: x = '+p.x+'.';},
+        step_verify:         function(p){return 'Επαλήθευση: αντικατάσταση x = '+p.x+'.';},
+        step_identity_true:  function(){return 'Άπειρες λύσεις (ταυτότητα).';},
+        step_identity_false: function(){return 'Χωρίς λύση (αντίφαση).';},
+        step_result_ineq:    function(p){return 'Αποτέλεσμα: '+p.res+(p.interval?', διάστημα: '+p.interval:'')+'.';},
+        step_quad_coeffs:    function(p){return 'Συντελεστές: a='+p.a+', b='+p.b+', c='+p.c+'.';},
+        step_quad_disc:      function(p){return 'Δ = b²−4ac = ('+p.b+')²−4·('+p.a+')·('+p.c+') = '+p.disc+'.';},
+        step_quad_complex:   function(p){return 'Δ<0: x = ('+p.nb+' ± i√'+p.absDisc+') / '+p.ta+'.';},
+        step_quad_double:    function(p){return 'Δ=0: x = −b/2a = '+p.x+'.';},
+        step_quad_two:       function(p){return 'Δ>0: x₁='+p.x1+', x₂='+p.x2+'.';},
+        step_quad_interval:  function(p){return 'Ανάλυση: ρίζες '+p.x1+' και '+p.x2+' → '+p.interval+'.';},
+        step_cubic_recognize:function(){return 'Κυβική εξίσωση (x³).';},
+        step_cubic_move:     function(p){return 'f(x) = ('+p.left+') − ('+p.right+').';},
+        step_cubic_scan:     function(){return 'Σάρωση για αλλαγές πρόσημου, Newton-Raphson.';},
+        step_cubic_dedup:    function(){return 'Αφαίρεση αριθμητικών διπλότυπων.';},
+        step_cubic_result:   function(p){return 'Ρίζες: '+p.roots+'.';},
+        step_cubic_deflate:  function(p){return 'Διαίρεση με (x − '+p.r+') ώστε να προκύψει τετραγωνική για τις υπόλοιπες ρίζες.';},
+        step_param_ab:       function(){return 'Γράφουμε την εξίσωση στη μορφή Α(λ)·x + Β(λ) = 0.';},
+        step_param_cases:    function(){return 'Εξετάζουμε πότε ο συντελεστής Α(λ) μηδενίζεται (ειδικές περιπτώσεις) και τη γενική περίπτωση.';},
+        step_param_quad_abc: function(){return 'Γράφουμε την εξίσωση στη μορφή a(λ)x² + b(λ)x + c(λ) = 0.';},
+        step_param_quad_delta:function(){return 'Υπολογίζουμε Δ(λ) = b(λ)² − 4a(λ)c(λ) και εξετάζουμε το πρόσημό του σε κάθε διάστημα του λ.';},
+        step_param_sys_det:  function(){return 'Υπολογίζουμε Δ(λ), Δx(λ), Δy(λ) και εξετάζουμε πού μηδενίζεται το Δ(λ).';},
+        step_cubic_none:     function(){return 'Δεν βρέθηκε πραγματική ρίζα.';},
+        step_abs_recognize:  function(p){return 'Απόλυτη Τιμή — '+(p.isIneq?'ανισότητα':'εξίσωση')+'.';},
+        step_abs_start:      function(p){return '|'+p.inner+'| '+p.op+' '+p.c+'.';},
+        step_abs_split:      function(p){return 'Διαχωρισμός: '+p.inner+' = '+p.c+' ΚΑΙ '+p.inner+' = '+(-p.c)+'.';},
+        step_abs_boundary:   function(p){return 'Όρια: '+p.inner+' = ±'+p.c+'.';},
+        step_abs_final:      function(){return 'Επαλήθευση αποτελεσμάτων.';},
+        step_sys_standard:   function(p){return 'Σύστημα: (1) '+p.eq1+', (2) '+p.eq2+'.';},
+        step_det:            function(p){return 'Ορίζουσα Δ = ('+p.a1+')('+p.b2+')−('+p.a2+')('+p.b1+') = '+p.D+'.';},
+        step_cramer_x:       function(p){return 'Δx='+p.Dx+' → x = '+p.x+'.';},
+        step_cramer_y:       function(p){return 'Δy='+p.Dy+' → y = '+p.y+'.';},
+        step_sys3_standard:  function(p){return 'Σύστημα: (1) '+p.eq1+', (2) '+p.eq2+', (3) '+p.eq3+'.';},
+        step_det_main:       function(p){return 'Κύρια ορίζουσα Δ = '+p.D+'.';},
+        step_det_xyz:        function(p){return 'Δx='+p.Dx+', Δy='+p.Dy+', Δz='+p.Dz+'.';},
+        step_cramer_xyz:     function(p){return 'x='+p.x+', y='+p.y+', z='+p.z+'.';},
+        step_identify:       function(p){return 'Έκφραση: '+p.expr+'.';},
+        step_scan:           function(p){return 'Σάρωση ['+p.a+', '+p.b+'].';},
+        step_newton:         function(){return 'Newton-Raphson για ακρίβεια.';},
+        step_count:          function(p){return 'Βρέθηκαν '+p.n+' ρίζ'+(p.n===1?'α':'ες')+'.';},
+        step_domain:         function(p){return 'Πεδίο: '+p.domain+'.';},
+        step_trig_convert:   function(){return 'Μετατροπή σε ακτίνια και μοίρες.';},
+        step_rat_zero:       function(){return 'Αναζήτηση ριζών, έλεγχος ασύμπτωτων.';},
+        step_rat_verify:     function(){return 'Επαλήθευση — αποκλεισμός μηδενισμών παρονομαστή.';},
+        step_rat_ineq_critical: function(p){return 'Κρίσιμα σημεία (ρίζες + όρια πεδίου): '+p.points+'.';},
+        step_rat_ineq_signchart: function(){return 'Έλεγχος προσήμου σε κάθε διάστημα μεταξύ των κρίσιμων σημείων.';},
+    },
+    en: {
+        step_recognize:      function(p){return 'Recognize type: '+p.eqType+' '+p.kind+'.';},
+        step_move_terms:     function(p){return 'Move terms: f(x) = ('+p.left+') − ('+p.right+').';},
+        step_simplify:       function(p){return 'Simplify: f(x) = '+p.expr+'.';},
+        step_separate:       function(p){return 'Separate: '+p.a+'x = '+p.negB+'.';},
+        step_divide:         function(p){return 'Divide: x = '+p.negB+' ÷ '+p.a+'.';},
+        step_ineq_flip:      function(p){return 'Dividing by negative ('+p.a+'), sign flips: '+p.op+' → '+p.newOp+'.';},
+        step_ineq_keep:      function(){return 'Divisor is positive, direction unchanged.';},
+        step_result:         function(p){return 'Final result: x = '+p.x+'.';},
+        step_verify:         function(p){return 'Verify: substitute x = '+p.x+'.';},
+        step_identity_true:  function(){return 'Infinite solutions (identity).';},
+        step_identity_false: function(){return 'No solution (contradiction).';},
+        step_result_ineq:    function(p){return 'Result: '+p.res+(p.interval?', interval: '+p.interval:'')+'.';},
+        step_quad_coeffs:    function(p){return 'Coefficients: a='+p.a+', b='+p.b+', c='+p.c+'.';},
+        step_quad_disc:      function(p){return 'Δ = b²−4ac = ('+p.b+')²−4·('+p.a+')·('+p.c+') = '+p.disc+'.';},
+        step_quad_complex:   function(p){return 'Δ<0: complex roots: x = ('+p.nb+' ± i√'+p.absDisc+') / '+p.ta+'.';},
+        step_quad_double:    function(p){return 'Δ=0: double root: x = '+p.x+'.';},
+        step_quad_two:       function(p){return 'Δ>0: two roots: x₁='+p.x1+', x₂='+p.x2+'.';},
+        step_quad_interval:  function(p){return 'Interval analysis: roots '+p.x1+' and '+p.x2+' → '+p.interval+'.';},
+        step_cubic_recognize:function(){return 'Cubic equation (x³).';},
+        step_cubic_move:     function(p){return 'f(x) = ('+p.left+') − ('+p.right+').';},
+        step_cubic_scan:     function(){return 'Scan for sign changes, Newton-Raphson refinement.';},
+        step_cubic_dedup:    function(){return 'Remove numerical duplicates.';},
+        step_cubic_result:   function(p){return 'Real roots: '+p.roots+'.';},
+        step_cubic_deflate:  function(p){return 'Divide by (x − '+p.r+') to get a quadratic for the remaining roots.';},
+        step_param_ab:       function(){return 'Write the equation as A(λ)·x + B(λ) = 0.';},
+        step_param_cases:    function(){return 'Check when the coefficient A(λ) vanishes (special cases) and the general case.';},
+        step_param_quad_abc: function(){return 'Write the equation as a(λ)x² + b(λ)x + c(λ) = 0.';},
+        step_param_quad_delta:function(){return 'Compute Δ(λ) = b(λ)² − 4a(λ)c(λ) and examine its sign on each λ-interval.';},
+        step_param_sys_det:  function(){return 'Compute Δ(λ), Δx(λ), Δy(λ) and examine where Δ(λ) vanishes.';},
+        step_cubic_none:     function(){return 'No real root found in numerical range.';},
+        step_abs_recognize:  function(p){return 'Absolute Value '+(p.isIneq?'inequality':'equation')+'.';},
+        step_abs_start:      function(p){return 'Start: |'+p.inner+'| '+p.op+' '+p.c+'.';},
+        step_abs_split:      function(p){return 'Split: '+p.inner+' = '+p.c+' AND '+p.inner+' = '+(-p.c)+'.';},
+        step_abs_boundary:   function(p){return 'Boundary: '+p.inner+' = ±'+p.c+'.';},
+        step_abs_final:      function(){return 'Verify results satisfy original condition.';},
+        step_sys_standard:   function(p){return 'Standard form: (1) '+p.eq1+', (2) '+p.eq2+'.';},
+        step_det:            function(p){return 'Det Δ = ('+p.a1+')('+p.b2+')−('+p.a2+')('+p.b1+') = '+p.D+'.';},
+        step_cramer_x:       function(p){return 'Δx='+p.Dx+' → x = '+p.x+'.';},
+        step_cramer_y:       function(p){return 'Δy='+p.Dy+' → y = '+p.y+'.';},
+        step_sys3_standard:  function(p){return 'System: (1) '+p.eq1+', (2) '+p.eq2+', (3) '+p.eq3+'.';},
+        step_det_main:       function(p){return 'Main determinant Δ = '+p.D+'.';},
+        step_det_xyz:        function(p){return 'Δx='+p.Dx+', Δy='+p.Dy+', Δz='+p.Dz+'.';},
+        step_cramer_xyz:     function(p){return 'x='+p.x+', y='+p.y+', z='+p.z+'.';},
+        step_identify:       function(p){return 'Identify: '+p.expr+'.';},
+        step_scan:           function(p){return 'Scan for roots in ['+p.a+', '+p.b+'].';},
+        step_newton:         function(){return 'Newton-Raphson for precision.';},
+        step_count:          function(p){return 'Found '+p.n+' real solution'+(p.n===1?'':'s')+'.';},
+        step_domain:         function(p){return 'Domain: '+p.domain+'.';},
+        step_trig_convert:   function(){return 'Convert to radians and degrees.';},
+        step_rat_zero:       function(){return 'Search zero-crossings, watch for asymptotes.';},
+        step_rat_verify:     function(){return 'Verify — exclude division-by-zero values.';},
+        step_rat_ineq_critical: function(p){return 'Critical points (roots + domain boundaries): '+p.points+'.';},
+        step_rat_ineq_signchart: function(){return 'Sign check in each interval between the critical points.';},
+    },
+    es: {
+        step_recognize:      function(p){return 'Reconocer tipo: '+p.eqType+' '+p.kind+'.';},
+        step_move_terms:     function(p){return 'Mover términos: f(x) = ('+p.left+') − ('+p.right+').';},
+        step_simplify:       function(p){return 'Simplificar: f(x) = '+p.expr+'.';},
+        step_separate:       function(p){return 'Separar: '+p.a+'x = '+p.negB+'.';},
+        step_divide:         function(p){return 'Dividir: x = '+p.negB+' ÷ '+p.a+'.';},
+        step_ineq_flip:      function(p){return 'Dividir por negativo ('+p.a+'), signo se invierte: '+p.op+' → '+p.newOp+'.';},
+        step_ineq_keep:      function(){return 'Divisor positivo, dirección no cambia.';},
+        step_result:         function(p){return 'Resultado: x = '+p.x+'.';},
+        step_verify:         function(p){return 'Verificar x = '+p.x+'.';},
+        step_identity_true:  function(){return 'Infinitas soluciones (identidad).';},
+        step_identity_false: function(){return 'Sin solución (contradicción).';},
+        step_result_ineq:    function(p){return 'Resultado: '+p.res+(p.interval?', intervalo: '+p.interval:'')+'.';},
+        step_quad_coeffs:    function(p){return 'Coeficientes: a='+p.a+', b='+p.b+', c='+p.c+'.';},
+        step_quad_disc:      function(p){return 'Δ = ('+p.b+')²−4·('+p.a+')·('+p.c+') = '+p.disc+'.';},
+        step_quad_complex:   function(p){return 'Δ<0: raíces complejas: x = ('+p.nb+' ± i√'+p.absDisc+') / '+p.ta+'.';},
+        step_quad_double:    function(p){return 'Δ=0: raíz doble: x = '+p.x+'.';},
+        step_quad_two:       function(p){return 'Δ>0: x₁='+p.x1+', x₂='+p.x2+'.';},
+        step_quad_interval:  function(p){return 'Intervalos desde '+p.x1+' y '+p.x2+' → '+p.interval+'.';},
+        step_cubic_recognize:function(){return 'Ecuación cúbica (x³).';},
+        step_cubic_move:     function(p){return 'f(x) = ('+p.left+') − ('+p.right+').';},
+        step_cubic_scan:     function(){return 'Buscar cambios de signo, Newton-Raphson.';},
+        step_cubic_dedup:    function(){return 'Eliminar duplicados numéricos.';},
+        step_cubic_result:   function(p){return 'Raíces: '+p.roots+'.';},
+        step_cubic_deflate:  function(p){return 'Dividir entre (x − '+p.r+') para obtener una cuadrática con las raíces restantes.';},
+        step_param_ab:       function(){return 'Escribimos la ecuación como A(λ)·x + B(λ) = 0.';},
+        step_param_cases:    function(){return 'Examinamos cuándo se anula el coeficiente A(λ) (casos especiales) y el caso general.';},
+        step_param_quad_abc: function(){return 'Escribimos la ecuación como a(λ)x² + b(λ)x + c(λ) = 0.';},
+        step_param_quad_delta:function(){return 'Calculamos Δ(λ) = b(λ)² − 4a(λ)c(λ) y examinamos su signo en cada intervalo de λ.';},
+        step_param_sys_det:  function(){return 'Calculamos Δ(λ), Δx(λ), Δy(λ) y examinamos dónde se anula Δ(λ).';},
+        step_cubic_none:     function(){return 'No se encontró raíz real.';},
+        step_abs_recognize:  function(p){return 'Valor Absoluto — '+(p.isIneq?'inecuación':'ecuación')+'.';},
+        step_abs_start:      function(p){return '|'+p.inner+'| '+p.op+' '+p.c+'.';},
+        step_abs_split:      function(p){return 'Casos: '+p.inner+' = '+p.c+' y '+p.inner+' = '+(-p.c)+'.';},
+        step_abs_boundary:   function(p){return 'Límites: '+p.inner+' = ±'+p.c+'.';},
+        step_abs_final:      function(){return 'Verificar resultados.';},
+        step_sys_standard:   function(p){return 'Forma: (1) '+p.eq1+', (2) '+p.eq2+'.';},
+        step_det:            function(p){return 'Det Δ = ('+p.a1+')('+p.b2+')−('+p.a2+')('+p.b1+') = '+p.D+'.';},
+        step_cramer_x:       function(p){return 'Δx='+p.Dx+' → x = '+p.x+'.';},
+        step_cramer_y:       function(p){return 'Δy='+p.Dy+' → y = '+p.y+'.';},
+        step_sys3_standard:  function(p){return 'Sistema: (1) '+p.eq1+', (2) '+p.eq2+', (3) '+p.eq3+'.';},
+        step_det_main:       function(p){return 'Determinante principal Δ = '+p.D+'.';},
+        step_det_xyz:        function(p){return 'Δx='+p.Dx+', Δy='+p.Dy+', Δz='+p.Dz+'.';},
+        step_cramer_xyz:     function(p){return 'x='+p.x+', y='+p.y+', z='+p.z+'.';},
+        step_identify:       function(p){return 'Identificar: '+p.expr+'.';},
+        step_scan:           function(p){return 'Buscar en ['+p.a+', '+p.b+'].';},
+        step_newton:         function(){return 'Newton-Raphson para máxima precisión.';},
+        step_count:          function(p){return p.n===1?'Se encontró 1 solución':'Se encontraron '+p.n+' soluciones';},
+        step_domain:         function(p){return 'Dominio: '+p.domain+'.';},
+        step_trig_convert:   function(){return 'Convertir a radianes y grados.';},
+        step_rat_zero:       function(){return 'Buscar cruces por cero, asíntotas.';},
+        step_rat_verify:     function(){return 'Verificar — excluir ceros del denominador.';},
+        step_rat_ineq_critical: function(p){return 'Puntos críticos (raíces + límites del dominio): '+p.points+'.';},
+        step_rat_ineq_signchart: function(){return 'Comprobación de signo en cada intervalo entre los puntos críticos.';},
+    }
+};
+
+/* ── S() step renderer ── */
+function S(type, params) {
+    params = params || {};
+    var lang = MultiCalc.state.currentLang || 'el';
+    var tpl = MultiCalc.data.stepTemplates;
+    var fn = (tpl[lang] && tpl[lang][type]) || (tpl['en'] && tpl['en'][type]);
+    return fn ? fn(params) : '['+type+']';
+}
+
+/* ── Math helpers ── */
+/* None of this module's expression strings ever contain a real
+   function call, so a closing paren directly followed by a digit or
+   another opening paren — or a digit directly followed by an opening
+   paren — always means implicit multiplication was left out (e.g.
+   "(x-1)(x+2)", "2(x+1)", or, once x/λ are substituted with a
+   parenthesized number, "(λ-2)x" and "λx"). Without this, JS reads
+   ")(" as trying to call the left side as a function and throws
+   "N is not a function" instead of evaluating — every eval helper
+   below runs the substituted string through this before executing. */
+function fixImplicitMult(s) {
+    return s.replace(/\)(?=[\d(])/g,')*').replace(/(\d)(?=\()/g,'$1*');
+}
+/* Central-difference numerical derivative, used to Newton-refine a
+   bracketed root once a sign change is found — the exact same 1e-7
+   step was hand-repeated at every numeric root-scan in this file
+   (rational/trig/exp/log/poly). Scan range, step, iteration cap, and
+   dedup tolerance genuinely differ per solver, so only this shared
+   piece — not the whole scan loop — is factored out. */
+function makeNumericDeriv(fn) {
+    return function(x){ return (fn(x+1e-7)-fn(x-1e-7))/2e-7; };
+}
+function safeEval(expr, xv, yv) {
+    yv = yv === undefined ? 0 : yv;
+    var s = expr
+        .replace(/²/g,'**2').replace(/³/g,'**3').replace(/\^/g,'**')
+        .replace(/×/g,'*').replace(/÷/g,'/')
+        .replace(/(\d)(x)/g,'$1*$2').replace(/(\d)(y)/g,'$1*$2')
+        .replace(/x/g,'('+xv+')').replace(/y/g,'('+yv+')');
+    return Function('"use strict"; return (' + fixImplicitMult(s) + ')')();
+}
+
+function safeEval3(expr, xv, yv, zv) {
+    var s = expr
+        .replace(/²/g,'**2').replace(/³/g,'**3').replace(/\^/g,'**')
+        .replace(/×/g,'*').replace(/÷/g,'/')
+        .replace(/(\d)(x|y|z)/g,'$1*$2')
+        .replace(/x/g,'('+xv+')').replace(/y/g,'('+yv+')').replace(/z/g,'('+zv+')');
+    return Function('"use strict";return('+fixImplicitMult(s)+')')();
+}
+
+function mkFn(left, right) { return function(x){ return safeEval(left,x) - safeEval(right,x); }; }
+
+function fmtNum(n) {
+    if (!isFinite(n)) return '∞';
+    var r = parseFloat(n.toFixed(6));
+    if (Number.isInteger(r)) return String(r);
+    for (var d=2; d<=20; d++) {
+        var nd = Math.round(r*d);
+        if (Math.abs(nd/d - r) < 1e-6) return nd+'/'+d;
+    }
+    return parseFloat(n.toFixed(6)).toString();
+}
+
+/* Same number → "nice fraction?" search as fmtNum (kept in exact sync
+   deliberately, so the two never disagree on which numbers count as
+   a clean fraction), but for use inside KX()-wrapped LaTeX: returns
+   a proper \frac{}{} instead of a plain "n/d" string. Never call this
+   for plain-text contexts (verification lines, step messages, graph
+   titles, interval notation) — those must keep using fmtNum(), or the
+   raw "\frac{...}" source would show up unrendered as literal text. */
+function fmtNumTex(n) {
+    if (!isFinite(n)) return n>0 ? '+\\infty' : '-\\infty';
+    var r = parseFloat(n.toFixed(6));
+    if (Number.isInteger(r)) return String(r);
+    for (var d=2; d<=20; d++) {
+        var nd = Math.round(r*d);
+        if (Math.abs(nd/d - r) < 1e-6) return (nd<0?'-':'')+'\\frac{'+Math.abs(nd)+'}{'+d+'}';
+    }
+    return parseFloat(n.toFixed(6)).toString();
+}
+
+function verifyFmt(left, right, xv, yv) {
+    yv = yv || 0;
+    try {
+        var lv = safeEval(left, xv, yv), rv = safeEval(right, xv, yv);
+        var ok = Math.abs(lv-rv) < 1e-6;
+        return '<span class="'+(ok?'eq-check':'eq-warn')+'">'+(ok?'✓':'≈')+' '+(T('verification')||'Verification')+': '+parseFloat(lv.toFixed(6))+' = '+parseFloat(rv.toFixed(6))+'</span>';
+    } catch(e){ return ''; }
+}
+
+function splitOnOp(input) {
+    var ops = [['>=','≥'],['<=','≤'],['>','>'],[' < ',' < '],['<','<'],['=','=']];
+    for (var i=0; i<ops.length; i++) {
+        var op=ops[i][0], disp=ops[i][1];
+        var idx = input.indexOf(op);
+        if (idx !== -1) return {left:input.slice(0,idx).trim(), right:input.slice(idx+op.length).trim(), op:op.trim(), opDisplay:disp};
+    }
+    return null;
+}
+
+function solveLinearExpr(left, right) {
+    var f = mkFn(left, right);
+    var f0=f(0), f1=f(1), f2=f(2);
+    var a=f1-f0, b=f0;
+    if (Math.abs(f2-(2*a+b)) > 1e-6) return null;
+    if (Math.abs(a) < 1e-12) return Math.abs(b)<1e-8 ? {type:'infinite'} : {type:'none'};
+    return {type:'linear', x:-b/a, a:a, b:b};
+}
+
+function solveQuadraticExpr(left, right) {
+    var f=mkFn(left,right), f0=f(0), f1=f(1), fm1=f(-1);
+    var a=(f1+fm1-2*f0)/2, b=(f1-fm1)/2, c=f0;
+    var disc=b*b-4*a*c;
+    if (Math.abs(a)<1e-12) return null;
+    if (disc<0) { var re=-b/(2*a), im=Math.sqrt(-disc)/(2*a); return {type:'complex',a,b,c,disc,re,im}; }
+    if (Math.abs(disc)<1e-12) return {type:'one',a,b,c,x1:-b/(2*a)};
+    var sq=Math.sqrt(disc);
+    return {type:'two',a,b,c,disc,x1:(-b+sq)/(2*a),x2:(-b-sq)/(2*a)};
+}
+
+function describeInterval(op, x) {
+    var xStr=fmtNum(x);
+    if (op==='>') return {res:'x > '+xStr, interval:'('+xStr+', +∞)'};
+    if (op==='<') return {res:'x < '+xStr, interval:'(−∞, '+xStr+')'};
+    if (op==='>=') return {res:'x ≥ '+xStr, interval:'['+xStr+', +∞)'};
+    if (op==='<=') return {res:'x ≤ '+xStr, interval:'(−∞, '+xStr+']'};
+    return {res:xStr, interval:''};
+}
+
+/* ── Core solvers ── */
+/* Shows the #eq-result-panel wrapper alongside the result div itself
+   — this exact pair of display toggles was repeated at every single
+   solve outcome (success or warning) across every solver in this
+   file. */
+function revealEqResult(result) {
+    result.style.display='block';
+    var panel=document.getElementById('eq-result-panel'); if(panel) panel.style.display='block';
+}
+/* result.innerHTML=X; revealEqResult(result); was repeated at every
+   successful-solve return point across every solver in this file. */
+function finishEqResult(result, html) {
+    result.innerHTML=html;
+    revealEqResult(result);
+}
+function hideEqResult(result) {
+    if (result) result.style.display='none';
+    var panel=document.getElementById('eq-result-panel'); if(panel) panel.style.display='none';
+}
+function hideEqPlot() {
+    var plotDiv=document.getElementById('eq-plot'); if(plotDiv) plotDiv.style.display='none';
+}
+/* Shared "show a warning message" — only the state-clearing that
+   follows differs per call site, so that stays inline at each one. */
+function showEqWarning(result, key) {
+    result.innerHTML='<div class="eq-block eq-warn">⚠️ '+T(key)+'</div>';
+    revealEqResult(result);
+}
+function solveEquationImpl() {
+    var raw = (document.getElementById('eq-input')&&document.getElementById('eq-input').value||'').trim();
+    var result = document.getElementById('eq-result');
+    /* Compare curves belong to whatever equation is currently being
+       solved — reset them at the start of every solve cycle (new
+       input, or a chip switch that clears the input) rather than
+       leaving a stale comparison against a no-longer-visible curve.
+       addCompareCurve/removeCompareCurve call plotEquation directly
+       and never go through here, so this doesn't fight the user
+       while they're actively adding/removing compare curves. */
+    _eqCompareCurves=[];
+    var cmpBox0=document.getElementById('eq-compare-box'); if(cmpBox0) cmpBox0.style.display='none';
+    var cmpChips0=document.getElementById('eq-compare-chips'); if(cmpChips0) cmpChips0.innerHTML='';
+    var exHint0=document.getElementById('eq-exercise-hint'); if(exHint0) exHint0.style.display='none';
+    if (!raw) { result.style.display='none'; return; }
+    var input = raw.replace(/\s+/g,' ').replace(/−/g,'-').replace(/–/g,'-')
+                   .replace(/≥/g,'>=').replace(/≤/g,'<=');
+    try {
+        /* system/system3 must be checked BEFORE the generic λ-catch-all
+           below: that check only ever looked at the first input field,
+           so a λ typed into eq1 while on the System chip was being
+           wrongly grabbed by solveParametric() as if it were a lone
+           equation — and a λ typed only into eq2 fell through to the
+           plain solveSystem(), which has no idea what λ is. Fixed by
+           checking both of a system's own fields for λ right here. */
+        if (MultiCalc.state.eqMode==='system3') {
+            var r2=(document.getElementById('eq-input2')&&document.getElementById('eq-input2').value||'').trim();
+            var r3=(document.getElementById('eq-input3')&&document.getElementById('eq-input3').value||'').trim();
+            if (!r2||!r3){result.style.display='none';return;}
+            var r2c=r2.replace(/−/g,'-'), r3c=r3.replace(/−/g,'-');
+            if (/λ/.test(input)||/λ/.test(r2c)||/λ/.test(r3c)) {
+                showEqWarning(result, 'eqParamSystemNotSupported3');
+                return;
+            }
+            solveSystem3(input,r2c,r3c,result); return;
+        }
+        if (MultiCalc.state.eqMode==='system') {
+            var raw2=(document.getElementById('eq-input2')&&document.getElementById('eq-input2').value||'').trim();
+            if (!raw2){result.style.display='none';return;}
+            var eq2c=raw2.replace(/−/g,'-');
+            if (/λ/.test(input)||/λ/.test(eq2c)) { solveParametricSystem(input,eq2c,result); return; }
+            solveSystem(input,eq2c,result); return;
+        }
+        if (MultiCalc.state.eqMode==='param'||/λ/.test(input)) { solveParametric(input,result); return; }
+        if (/\|/.test(input)||MultiCalc.state.eqMode==='absolute') { solveAbsolute(input,result); return; }
+        if (MultiCalc.state.eqMode==='rational'||/\(.*\)\/\(/.test(input)) { solveRational(input,result); return; }
+        if (MultiCalc.state.eqMode==='trig'||/sin|cos|tan|asin|acos|atan/.test(input)) { solveTrigonometric(input,result); return; }
+        if (MultiCalc.state.eqMode==='log'||/log|ln\(|log10/.test(input)) { solveLogarithmic(input,result); return; }
+        if (MultiCalc.state.eqMode==='poly'||/\^[4-9]|\^\d{2}/.test(input)) { solvePolynomial(input,result); return; }
+
+        var parsed=splitOnOp(input);
+        if (!parsed) throw new Error('no_operator');
+        var left=parsed.left, right=parsed.right, op=parsed.op, opDisplay=parsed.opDisplay;
+        var isInequality=op!=='=';
+        var isCubic=/x\s*\*{2}\s*3|x³|x\^3/i.test(input);
+        var isQuad=!isCubic&&/x\s*\*{2}\s*2|x²|x\^2/i.test(input);
+
+        if (MultiCalc.state.eqMode==='cubic'||isCubic) {
+            solveCubicEq(left,right,op,isInequality,result);
+            if (!isInequality) plotEquation(left,right);
+            else hideEqPlot();
+            return;
+        }
+        if (MultiCalc.state.eqMode==='exp'||/\d\s*\^\s*x|e\s*\^\s*x|exp\(/.test(input)) { solveExponential(input,result); return; }
+
+        if (isQuad) {
+            var sol=solveQuadraticExpr(left,right);
+            if (!sol){showLinear(left,right,op,opDisplay,result,isInequality);return;}
+            var aS=fmtNum(sol.a),bS=fmtNum(sol.b),cS=fmtNum(sol.c);
+            var aT=fmtNumTex(sol.a),bT=fmtNumTex(sol.b),cT=fmtNumTex(sol.c);
+            var stdFormTex=aT+'x^2 '+(sol.b>=0?'+ ':'')+bT+'x '+(sol.c>=0?'+ ':'')+cT+' = 0';
+            var html='<div class="eq-answer">'+T('eqQuadTitle')+'</div>';
+            html+='<div class="eq-block">'+T('eqStandardForm')+' '+KX(stdFormTex)+'<br>'+KX('\\Delta = b^2 - 4ac = '+fmtNumTex(sol.disc))+'</div>';
+            var quadSteps=[S('step_quad_coeffs',{a:aS,b:bS,c:cS}),S('step_quad_disc',{b:bS,a:aS,c:cS,disc:fmtNum(sol.disc)})];
+            if (sol.type==='complex') {
+                var re=fmtNumTex(sol.re),im=fmtNumTex(Math.abs(sol.im));
+                html+='<div class="eq-answer">'+KX('x_1 = '+re+' + '+im+'i',true)+'</div><div class="eq-answer">'+KX('x_2 = '+re+' - '+im+'i',true)+'</div>';
+                html+='<div class="eq-block eq-warn">⚠️ '+T('eqNoRealRootsDelta')+'</div>';
+                quadSteps.push(S('step_quad_complex',{nb:fmtNum(-sol.b),absDisc:fmtNum(Math.abs(sol.disc)),ta:fmtNum(2*sol.a)}));
+            } else if (sol.type==='one') {
+                html+='<div class="eq-answer">'+KX('x = '+fmtNumTex(sol.x1),true)+' <small>'+T('eqDoubleRoot')+'</small></div>';
+                html+='<div class="eq-block">'+verifyFmt(left,right,sol.x1)+'</div>';
+                quadSteps.push(S('step_quad_double',{x:fmtNum(sol.x1)}));
+            } else {
+                quadSteps.push(S('step_quad_two',{x1:fmtNum(sol.x1),x2:fmtNum(sol.x2)}));
+                if (isInequality) {
+                    var x1r=sol.x1<sol.x2?sol.x1:sol.x2, x2r=sol.x1<sol.x2?sol.x2:sol.x1;
+                    var mid=(x1r+x2r)/2, fMid=mkFn(left,right)(mid);
+                    var inner=(op==='<'||op==='<=')?fMid<0:fMid>0;
+                    var br=op.includes('='),bl=op.includes('=');
+                    var interval=inner?(bl?'[':'(')+fmtNum(x1r)+', '+fmtNum(x2r)+(br?']':')'):'(−∞, '+fmtNum(x1r)+(br?']':')')+'  ∪ '+(bl?'[':'(')+fmtNum(x2r)+', +∞)';
+                    html+='<div class="eq-answer">'+interval+'</div>';
+                    html+='<div class="eq-block">'+T('eq_roots')+': '+KX('x_1='+fmtNumTex(x1r)+',\\ x_2='+fmtNumTex(x2r))+'</div>';
+                    quadSteps.push(S('step_quad_interval',{x1:fmtNum(x1r),x2:fmtNum(x2r),interval:interval}));
+                } else {
+                    html+='<div class="eq-answer">'+KX('x_1 = '+fmtNumTex(sol.x1),true)+'</div><div class="eq-answer">'+KX('x_2 = '+fmtNumTex(sol.x2),true)+'</div>';
+                    html+='<div class="eq-block">'+verifyFmt(left,right,sol.x1)+'<br>'+verifyFmt(left,right,sol.x2)+'</div>';
+                }
+            }
+            displaySteps(quadSteps); finishEqResult(result, html);
+        } else {
+            showLinear(left,right,op,opDisplay,result,isInequality);
+        }
+        if (!isInequality&&MultiCalc.state.eqMode!=='system'&&MultiCalc.state.eqMode!=='system3') plotEquation(left,right);
+        else hideEqPlot();
+    } catch(e) {
+        result.innerHTML='<div class="eq-nosol" style="font-size:0.85rem;">'+T('eqCannotParse')+'</div>';
+        revealEqResult(result);
+    } finally {
+        requestAnimationFrame(function(){
+            var panel=document.getElementById('eq-result-panel');
+            if(panel&&panel.style.display!=='none') panel.scrollIntoView({behavior:'smooth',block:'start'});
+        });
+    }
+}
+
+/* Numerically recovers a cubic's own a,b,c,d (in ax^3+bx^2+cx+d form)
+   from 4 sample evaluations via finite differences — exact for a true
+   cubic, and works regardless of how the input expression is written
+   (no symbolic parsing needed, matches this file's numeric-only style). */
+function extractCubicCoeffs(fn) {
+    var fm1=fn(-1), f0=fn(0), f1=fn(1), f2=fn(2);
+    var d = f0;
+    var b = (f1+fm1)/2 - d;
+    var a = (f2 - 4*b - d - f1 + fm1) / 6;
+    var c = (f1 - fm1)/2 - a;
+    return {a:a,b:b,c:c,d:d};
+}
+
+/* Completes a cubic's root set to all 3 roots given the real ones the
+   scan already found. A cubic's roots are either 3 real, or 1 real +
+   a complex-conjugate pair — never anything else — so:
+   - 1 known real root r: deflate by (x-r) via synthetic division to
+     get a quadratic; its discriminant decides whether the remaining
+     two are real (possibly a same-sign double root the scan can't
+     see, e.g. (x-1)^2(x+2)) or a genuine complex-conjugate pair.
+   - 2 known real roots: the third is forced by Vieta's formula
+     (sum of roots = -b/a) — always real, no need to deflate at all. */
+function completeCubicRoots(fn, realRoots) {
+    if (realRoots.length >= 3) return {extraReal:[], complex:null};
+    var co=extractCubicCoeffs(fn), a=co.a, b=co.b, c=co.c;
+    if (realRoots.length === 2) {
+        return {extraReal:[ -b/a - realRoots[0] - realRoots[1] ], complex:null};
+    }
+    var r=realRoots[0], A=a, B=b+a*r, C=c+(b+a*r)*r, disc=B*B-4*A*C;
+    if (disc >= -1e-6) {
+        var sq=Math.sqrt(Math.max(disc,0));
+        return {extraReal:[(-B+sq)/(2*A), (-B-sq)/(2*A)], complex:null};
+    }
+    return {extraReal:[], complex:{re:-B/(2*A), im:Math.sqrt(-disc)/(2*A)}};
+}
+
+function solveCubicEq(left, right, op, isInequality, result) {
+    var fn=mkFn(left,right);
+
+    if (isInequality) {
+        var criticalC=findFunctionCriticalPoints(fn,-1000,1000,0.1);
+        var segsC=buildSignChartSegments(fn,criticalC,op);
+        var intervalC=formatIntervalUnion(segsC, T('eqNoSolutionSet'));
+        var rootsC=criticalC.filter(function(c){return c.kind==='root';});
+        var htmlC='<div class="eq-answer">'+T('eqCubicIneqTitle')+'</div>';
+        htmlC+='<div class="eq-answer">'+intervalC+'</div>';
+        if (rootsC.length) htmlC+='<div class="eq-block">'+T('eq_roots')+': '+KX(rootsC.map(function(r,i){return 'x_'+(i+1)+'='+fmtNumTex(r.x);}).join(',\\ '))+'</div>';
+        displaySteps([
+            S('step_cubic_recognize'),
+            S('step_cubic_move',{left:left,right:right}),
+            S('step_rat_ineq_signchart')
+        ]);
+        result.innerHTML=htmlC; revealEqResult(result);
+        return;
+    }
+
+    var dfn=makeNumericDeriv(fn);
+    var roots=[],scan=1000,step=0.1;
+    for (var x=-scan; x<scan; x+=step) {
+        var y1=fn(x), y2=fn(x+step);
+        if (isFinite(y1)&&isFinite(y2)&&y1*y2<0) {
+            var r=x+step/2;
+            for (var i=0;i<50;i++){var d=dfn(r);if(Math.abs(d)<1e-14)break;r-=fn(r)/d;}
+            r=Math.round(r*1e9)/1e9;
+            if (roots.every(function(e){return Math.abs(e-r)>1e-6;})) roots.push(r);
+        }
+    }
+    roots.sort(function(a,b){return a-b;});
+    if (!roots.length) {
+        displaySteps([S('step_cubic_recognize'),S('step_cubic_move',{left:left,right:right}),S('step_cubic_none')]);
+        result.innerHTML='<div class="eq-block eq-warn">'+T('eqCubicNoRoots')+'</div>';
+        revealEqResult(result); return;
+    }
+
+    var completed=completeCubicRoots(fn,roots), complexPair=completed.complex;
+    completed.extraReal.forEach(function(r){
+        if (roots.every(function(e){return Math.abs(e-r)>1e-6;})) roots.push(r);
+    });
+    roots.sort(function(a,b){return a-b;});
+    var totalCount = complexPair ? 3 : roots.length;
+
+    var baseSteps=[S('step_cubic_recognize'),S('step_cubic_move',{left:left,right:right}),S('step_cubic_scan'),S('step_cubic_dedup'),S('step_cubic_result',{roots:roots.map(fmtNum).join(', ')})];
+    if (completed.extraReal.length || complexPair) baseSteps.push(S('step_cubic_deflate',{r:fmtNum(roots[0])}));
+    displaySteps(baseSteps);
+
+    var titleFn=T('eqCubicTitle');
+    var html='<div class="eq-answer">'+(typeof titleFn==='function'?titleFn(totalCount):titleFn)+'</div>';
+    roots.forEach(function(r,i){html+='<div class="eq-answer">'+KX((totalCount>1?'x_'+(i+1):'x')+' = '+fmtNumTex(r),true)+'</div>';});
+    html+='<div class="eq-block">';
+    roots.forEach(function(r){html+=verifyFmt(left,right,r)+'<br>';});
+    if (complexPair) {
+        var reT=fmtNumTex(complexPair.re), imT=fmtNumTex(Math.abs(complexPair.im));
+        html+=KX('x_'+(roots.length+1)+' = '+reT+' + '+imT+'i',true)+'<br>'+KX('x_'+(roots.length+2)+' = '+reT+' - '+imT+'i',true)+'<br>';
+        html+='<span class="eq-warn">⚠️ '+T('eqCubicComplexNote')+'</span><br>';
+    }
+    html+='<small style="opacity:0.5;">'+T('eqSolvedNR')+'</small></div>';
+    finishEqResult(result, html);
+}
+
+function solveAbsolute(input, result) {
+    var m=input.match(/\|([^|]+)\|\s*(=|>=|<=|>|<)\s*(.+)/);
+    if (!m) throw new Error('bad_abs');
+    var inner=m[1], op=m[2], c=parseFloat(m[3].trim());
+    if (isNaN(c)) throw new Error('bad_abs_rhs');
+    var html='';
+    if (op==='=') {
+        if (c<0) { html='<div class="eq-answer eq-nosol">'+T('eqAbsNoSol')+'</div><div class="eq-block">'+T('eqAbsNegative')+'</div>'; }
+        else if (c===0) { var sol0=solveLinearExpr(inner.trim(),'0'); html='<div class="eq-answer">'+KX('x = '+fmtNumTex(sol0.x),true)+'</div>'; }
+        else {
+            var s1=solveLinearExpr(inner.trim(),c.toString()), s2=solveLinearExpr(inner.trim(),(-c).toString());
+            html='<div class="eq-answer">'+KX('x_1 = '+fmtNumTex(s1.x),true)+'</div><div class="eq-answer">'+KX('x_2 = '+fmtNumTex(s2.x),true)+'</div>';
+            var c1fn=T('eqAbsCase1'),c2fn=T('eqAbsCase2');
+            html+='<div class="eq-block">'+(typeof c1fn==='function'?c1fn(inner,c):'Case 1: '+inner+' = '+c)+' → x = '+fmtNum(s1.x)+'<br>'+(typeof c2fn==='function'?c2fn(inner,c):'Case 2: '+inner+' = −'+c)+' → x = '+fmtNum(s2.x)+'</div>';
+        }
+    } else {
+        var sol1=solveLinearExpr(inner.trim(),c.toString()), sol2=solveLinearExpr(inner.trim(),(-c).toString());
+        var xx1=sol1&&sol2?Math.min(sol1.x,sol2.x):null, xx2=sol1&&sol2?Math.max(sol1.x,sol2.x):null;
+        if (xx1===null){html='<div class="eq-block eq-warn">'+T('eqAbsCannotSolve')+'</div>';}
+        else if (op==='<'||op==='<='){html='<div class="eq-answer">'+(op.includes('=')?'[':'(')+fmtNum(xx1)+', '+fmtNum(xx2)+(op.includes('=')?']':')')+'</div>';}
+        else{html='<div class="eq-answer">(−∞, '+fmtNum(xx1)+(op.includes('=')?']':')')+' ∪ '+(op.includes('=')?'[':'(')+fmtNum(xx2)+', +∞)</div>';}
+    }
+    displaySteps([S('step_abs_recognize',{isIneq:op!=='='}),S('step_abs_start',{inner:inner,op:op,c:c}),op==='='?S('step_abs_split',{inner:inner,c:c}):S('step_abs_boundary',{inner:inner,c:c}),S('step_abs_final')]);
+    finishEqResult(result, html);
+}
+
+/* Finds every critical point of fn(x) across [xMin,xMax]: both
+   genuine roots (fn crosses zero) and domain gaps (fn undefined /
+   blows up — a zero denominator, or a value outside a function's
+   domain). Used to build a sign chart for solving INEQUALITIES
+   numerically — several solvers in this file used to call splitOnOp()
+   to get the comparison operator and then silently ignore it,
+   always treating the input as "=" (e.g. solveRational() reporting
+   "Rational Equation" for an input typed with ">="). A plain
+   root-vs-pole sign change looks identical from the two sample
+   points alone (both finite, opposite sign) — a pole just means the
+   magnitude keeps GROWING as we zoom in with bisection instead of
+   shrinking toward zero, which is what distinguishes them below. */
+function findFunctionCriticalPoints(fn, xMin, xMax, step) {
+    var points=[];
+    function isNum(v){ return typeof v==='number' && !isNaN(v); }
+    var prevX=xMin, prevY=fn(xMin);
+    for (var x=xMin+step; x<=xMax+1e-9; x+=step) {
+        var y=fn(x);
+        var prevFinite=isNum(prevY)&&isFinite(prevY), curFinite=isNum(y)&&isFinite(y);
+        if (prevFinite&&curFinite&&prevY===0) {
+            points.push({x:prevX,kind:'root'});
+        } else if (prevFinite&&curFinite&&prevY*y<0) {
+            var a=prevX,b=x,fa=prevY;
+            var origMag=Math.min(Math.abs(prevY),Math.abs(y));
+            for (var i=0;i<60;i++){
+                var m=(a+b)/2, fm=fn(m);
+                if (!isFinite(fm)) break;
+                if ((fa<0)===(fm<0)) { a=m; fa=fm; } else { b=m; }
+            }
+            var r=(a+b)/2, fr=fn(r);
+            points.push({x:Math.round(r*1e9)/1e9, kind:(isFinite(fr)&&Math.abs(fr)<origMag)?'root':'gap'});
+        } else if (prevFinite!==curFinite) {
+            var lo=prevX,hi=x,loFinite=prevFinite;
+            for (var j=0;j<60;j++){
+                var mid=(lo+hi)/2, fmid=fn(mid);
+                if ((isNum(fmid)&&isFinite(fmid))===loFinite) lo=mid; else hi=mid;
+            }
+            points.push({x:Math.round(((lo+hi)/2)*1e6)/1e6, kind:'gap'});
+        }
+        prevX=x; prevY=y;
+    }
+    points.sort(function(a,b){return a.x-b.x;});
+    var merged=[];
+    points.forEach(function(pt){
+        if (merged.length&&Math.abs(merged[merged.length-1].x-pt.x)<1e-3) {
+            if (pt.kind==='gap') merged[merged.length-1].kind='gap';
+            return;
+        }
+        merged.push(pt);
+    });
+    return merged;
+}
+
+/* Builds the x-intervals where fn(x) satisfies op, from the critical
+   points above. probeX is only used when there are NO critical
+   points at all (fn keeps one constant sign across the whole scanned
+   range) — default 0; a caller whose function is undefined at 0
+   (e.g. logarithms) should pass a safe in-domain probe instead. */
+function buildSignChartSegments(fn, critical, op, probeX) {
+    probeX = probeX===undefined ? 0 : probeX;
+    var wantPos=(op==='>'||op==='>='), strict=(op==='>'||op==='<');
+    var n=critical.length, segments=[];
+    for (var k=0;k<=n;k++){
+        var lo=k===0?-Infinity:critical[k-1].x, hi=k===n?Infinity:critical[k].x;
+        var mid=(isFinite(lo)&&isFinite(hi))?(lo+hi)/2:(isFinite(lo)?lo+1:(isFinite(hi)?hi-1:probeX));
+        var val=fn(mid);
+        if (isFinite(val)&&(wantPos?val>0:val<0)) {
+            segments.push({
+                lo:lo, hi:hi,
+                loInc:isFinite(lo)&&critical[k-1].kind==='root'&&!strict,
+                hiInc:isFinite(hi)&&critical[k].kind==='root'&&!strict
+            });
+        }
+    }
+    return segments;
+}
+
+function formatIntervalUnion(segments, emptyText) {
+    if (!segments.length) return emptyText;
+    var fmtBound=function(v){return v===-Infinity?'−∞':(v===Infinity?'+∞':fmtNum(v));};
+    return segments.map(function(s){return (s.loInc?'[':'(')+fmtBound(s.lo)+', '+fmtBound(s.hi)+(s.hiInc?']':')');}).join(' ∪ ');
+}
+
+function solveRational(input, result) {
+    var p=splitOnOp(input); if (!p) throw new Error('bad_rat');
+
+    if (p.op !== '=') {
+        /* Rational INEQUALITY: proper sign-chart analysis instead of
+           treating ">=" etc. as "=" and reporting roots as if they
+           were the whole answer. */
+        var fnIneq=function(x){try{return safeEval(p.left,x)-safeEval(p.right,x);}catch(e){return NaN;}};
+        var critical=findFunctionCriticalPoints(fnIneq,-200,200,0.02);
+        var segments=buildSignChartSegments(fnIneq,critical,p.op);
+        var intervalStr=formatIntervalUnion(segments, T('eqNoSolutionSet'));
+        var roots=critical.filter(function(c){return c.kind==='root';});
+        var gaps=critical.filter(function(c){return c.kind==='gap';});
+        var html='<div class="eq-answer">'+T('eqRationalIneqTitle')+'</div>';
+        html+='<div class="eq-answer">'+intervalStr+'</div>';
+        if (roots.length) html+='<div class="eq-block">'+T('eq_roots')+': '+KX(roots.map(function(r,i){return 'x_'+(i+1)+'='+fmtNumTex(r.x);}).join(',\\ '))+'</div>';
+        if (gaps.length) html+='<div class="eq-block eq-warn">'+T('eqRationalUndefinedAt')+': x = '+gaps.map(function(g){return fmtNum(g.x);}).join(', ')+'</div>';
+        displaySteps([
+            S('step_identify',{expr:p.left+' '+p.opDisplay+' '+p.right}),
+            S('step_rat_ineq_critical',{points:critical.map(function(c){return fmtNum(c.x);}).join(', ')||'—'}),
+            S('step_rat_ineq_signchart')
+        ]);
+        finishEqResult(result, html);
+        /* Matches the existing convention elsewhere in this file: the
+           graph plots f(x) with a zero line and root markers, but
+           doesn't shade a solution region, so it's hidden for
+           inequalities (see the generic linear/quadratic dispatch)
+           rather than shown looking like it solved an equation. */
+        hideEqPlot();
+        return;
+    }
+
+    var fn=function(x){try{return safeEval(p.left,x)-safeEval(p.right,x);}catch(e){return NaN;}};
+    var dfn=makeNumericDeriv(fn);
+    var roots=[],step=0.05;
+    for (var x=-200;x<200;x+=step){
+        var y1=fn(x),y2=fn(x+step);
+        if(isFinite(y1)&&isFinite(y2)&&y1*y2<0){
+            var r=x+step/2;
+            for(var i=0;i<60;i++){var d=dfn(r);if(Math.abs(d)<1e-14)break;r-=fn(r)/d;}
+            r=Math.round(r*1e9)/1e9;
+            try{safeEval(p.left,r);safeEval(p.right,r);}catch(e){continue;}
+            if(Math.abs(fn(r))<1e-6&&roots.every(function(e){return Math.abs(e-r)>1e-5;})) roots.push(r);
+        }
+    }
+    if (!roots.length){result.innerHTML='<div class="eq-answer eq-nosol">'+T('eqAbsNoSol')+'</div><div class="eq-block">'+T('eqRationalNoSol')+'</div>';revealEqResult(result);return;}
+    displaySteps([S('step_identify',{expr:p.left+' = '+p.right}),S('step_rat_zero'),S('step_newton'),S('step_rat_verify')]);
+    var html='<div class="eq-answer">'+T('eqRationalTitle')+'</div>';
+    roots.forEach(function(r,i){html+='<div class="eq-answer">'+KX((roots.length>1?'x_'+(i+1):'x')+' = '+fmtNumTex(r),true)+'</div><div class="eq-block">'+verifyFmt(p.left,p.right,r)+'</div>';});
+    finishEqResult(result, html);
+    plotEquation(p.left,p.right);
+}
+
+function solveSystem3(eq1,eq2,eq3,result) {
+    var parse3=function(eq){
+        var p=splitOnOp(eq); if(!p) throw new Error('bad');
+        var f=function(x,y,z){return safeEval3(p.left,x,y,z)-safeEval3(p.right,x,y,z);};
+        var c=f(0,0,0),ax=f(1,0,0)-c,ay=f(0,1,0)-c,az=f(0,0,1)-c;
+        return {a:ax,b:ay,c_:az,d:-c};
+    };
+    var e1=parse3(eq1),e2=parse3(eq2),e3=parse3(eq3);
+    var a1=e1.a,b1=e1.b,c1=e1.c_,d1=e1.d,a2=e2.a,b2=e2.b,c2=e2.c_,d2=e2.d,a3=e3.a,b3=e3.b,c3=e3.c_,d3=e3.d;
+    var det=function(m){return m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1])-m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0])+m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]);};
+    var A=[[a1,b1,c1],[a2,b2,c2],[a3,b3,c3]],D=det(A);
+    if (Math.abs(D)<1e-12){result.innerHTML='<div class="eq-answer eq-warn">'+T('eqNoUniqSol')+'</div><div class="eq-block">'+T('eqDeterminantZero')+'</div>';revealEqResult(result);return;}
+    var Dx=det([[d1,b1,c1],[d2,b2,c2],[d3,b3,c3]]),Dy=det([[a1,d1,c1],[a2,d2,c2],[a3,d3,c3]]),Dz=det([[a1,b1,d1],[a2,b2,d2],[a3,b3,d3]]);
+    var x=Dx/D,y=Dy/D,z=Dz/D;
+    displaySteps([S('step_sys3_standard',{eq1:fmtNum(a1)+'x+'+fmtNum(b1)+'y+'+fmtNum(c1)+'z='+fmtNum(d1),eq2:fmtNum(a2)+'x+'+fmtNum(b2)+'y+'+fmtNum(c2)+'z='+fmtNum(d2),eq3:fmtNum(a3)+'x+'+fmtNum(b3)+'y+'+fmtNum(c3)+'z='+fmtNum(d3)}),S('step_det_main',{D:fmtNum(D)}),S('step_det_xyz',{Dx:fmtNum(Dx),Dy:fmtNum(Dy),Dz:fmtNum(Dz)}),S('step_cramer_xyz',{x:fmtNum(x),y:fmtNum(y),z:fmtNum(z)})]);
+    result.innerHTML='<div class="eq-answer">'+KX('x = '+fmtNumTex(x),true)+'</div><div class="eq-answer">'+KX('y = '+fmtNumTex(y),true)+'</div><div class="eq-answer">'+KX('z = '+fmtNumTex(z),true)+'</div><div class="eq-block">'+T('eqCramerRule')+': '+KX('D='+fmtNumTex(D)+',\\ D_x='+fmtNumTex(Dx)+',\\ D_y='+fmtNumTex(Dy)+',\\ D_z='+fmtNumTex(Dz))+'</div>';
+    revealEqResult(result);
+}
+
+function showLinear(left,right,op,opDisplay,result,isInequality) {
+    var sol=solveLinearExpr(left,right); if(!sol) throw new Error('not_linear');
+    var html='';
+    var t=_eqTranslations[MultiCalc.state.currentLang]||_eqTranslations['en'];
+    var steps=[S('step_recognize',{eqType:t.eqLinear||'Linear',kind:isInequality?(t.eq_inequality_word||'inequality'):(t.eq_equation||'equation')}),S('step_move_terms',{left:left,right:right}),S('step_simplify',{expr:fmtNum(sol.a||0)+'x '+(sol.b>=0?'+ ':'- ')+fmtNum(Math.abs(sol.b||0))})];
+    if (sol.type==='infinite'){steps.push(S('step_identity_true'));html='<div class="eq-answer eq-check">'+T('eqInfSolutions')+'</div><div class="eq-block">'+T('eqIdentityTrue')+'</div>';}
+    else if (sol.type==='none'){steps.push(S('step_identity_false'));html='<div class="eq-answer eq-nosol">'+T('eqNoSolution')+'</div><div class="eq-block">'+T('eqContradiction')+'</div>';}
+    else {
+        steps.push(S('step_separate',{a:fmtNum(sol.a),negB:fmtNum(-sol.b)}));
+        steps.push(S('step_divide',{negB:fmtNum(-sol.b),a:fmtNum(sol.a)}));
+        if (isInequality) {
+            var flipped=sol.a<0,effectiveOp=op;
+            if(flipped){var flipMap={'>':"<",'<':'>',">=":"<=","<=":">="};effectiveOp=flipMap[op]||op;steps.push(S('step_ineq_flip',{a:fmtNum(sol.a),op:op,newOp:effectiveOp}));}
+            else steps.push(S('step_ineq_keep'));
+            var di=describeInterval(effectiveOp,sol.x); steps.push(S('step_result_ineq',{res:di.res,interval:di.interval}));
+            var opTex={'>':'>','<':'<','>=':'\\geq','<=':'\\leq'}[effectiveOp]||'=';
+            html='<div class="eq-answer">'+KX('x '+opTex+' '+fmtNumTex(sol.x),true)+'</div>';
+            if(di.interval) html+='<div class="eq-block">'+T('eqSolutionSet')+' <strong>'+di.interval+'</strong></div>';
+        } else {
+            steps.push(S('step_result',{x:fmtNum(sol.x)})); steps.push(S('step_verify',{x:fmtNum(sol.x)}));
+            html='<div class="eq-answer">'+KX('x = '+fmtNumTex(sol.x),true)+'</div><div class="eq-block">'+verifyFmt(left,right,sol.x)+'</div>';
+        }
+    }
+    displaySteps(steps); finishEqResult(result, html);
+}
+
+function solveSystem(eq1,eq2,result) {
+    var parse2=function(eq){
+        var p=splitOnOp(eq); if(!p) throw new Error('bad');
+        var f=function(xv,yv){return safeEval(p.left,xv,yv)-safeEval(p.right,xv,yv);};
+        var c=f(0,0),ax=f(1,0)-c,ay=f(0,1)-c;
+        return {a:ax,b:ay,c:-c};
+    };
+    var e1=parse2(eq1),e2=parse2(eq2);
+    var a1=e1.a,b1=e1.b,c1=e1.c,a2=e2.a,b2=e2.b,c2=e2.c;
+    var det=a1*b2-a2*b1;
+    if(Math.abs(det)<1e-12){result.innerHTML='<div class="eq-answer eq-warn">'+T('eqNoUniqSol')+'</div><div class="eq-block">'+T('eqDeterminantZero')+'</div>';revealEqResult(result);return;}
+    var Dx=c1*b2-c2*b1,Dy=a1*c2-a2*c1,x=Dx/det,y=Dy/det;
+    displaySteps([S('step_sys_standard',{eq1:fmtNum(a1)+'x + '+fmtNum(b1)+'y = '+fmtNum(c1),eq2:fmtNum(a2)+'x + '+fmtNum(b2)+'y = '+fmtNum(c2)}),S('step_det',{a1:fmtNum(a1),b2:fmtNum(b2),a2:fmtNum(a2),b1:fmtNum(b1),D:fmtNum(det)}),S('step_cramer_x',{Dx:fmtNum(Dx),x:fmtNum(x)}),S('step_cramer_y',{Dy:fmtNum(Dy),y:fmtNum(y)})]);
+    var p1=splitOnOp(eq1),p2=splitOnOp(eq2);
+    result.innerHTML='<div class="eq-answer">'+KX('x = '+fmtNumTex(x),true)+'</div><div class="eq-answer">'+KX('y = '+fmtNumTex(y),true)+'</div><div class="eq-block">'+T('eqCramerRule')+': '+KX('\\Delta = '+fmtNumTex(det))+'<br>'+verifyFmt(p1.left,p1.right,x,y)+'<br>'+verifyFmt(p2.left,p2.right,x,y)+'</div>';
+    revealEqResult(result);
+}
+
+function solveTrigonometric(input,result) {
+    var p=splitOnOp(input); if(!p) throw new Error('bad_trig');
+    var fn=function(x){try{var expr=p.left.replace(/sin/g,'Math.sin').replace(/cos/g,'Math.cos').replace(/tan/g,'Math.tan').replace(/π/g,Math.PI).replace(/x/g,'('+x+')');return Function('"use strict"; return '+expr)()-safeEval(p.right,x);}catch(e){return NaN;}};
+
+    if (p.op !== '=') {
+        /* Trigonometric INEQUALITY: sign-chart within the same
+           [−2π, 2π] window already used for the equation case below.
+           The true solution set is periodic (repeats every period
+           outside this window) — that's called out explicitly rather
+           than silently only showing one window's worth of answer. */
+        var criticalT=findFunctionCriticalPoints(fn,-2*Math.PI,2*Math.PI,0.01);
+        var segsT=buildSignChartSegments(fn,criticalT,p.op);
+        var intervalT=formatIntervalUnion(segsT, T('eqNoSolutionSet'));
+        var rootsT=criticalT.filter(function(c){return c.kind==='root';});
+        var htmlT='<div class="eq-answer">'+T('eqTrigIneqTitle')+'</div>';
+        htmlT+='<div class="eq-answer">'+intervalT+'</div>';
+        if (rootsT.length) htmlT+='<div class="eq-block">'+T('eq_roots')+' (rad): '+KX(rootsT.map(function(r,i){return 'x_'+(i+1)+'='+fmtNumTex(r.x);}).join(',\\ '))+'</div>';
+        htmlT+='<div class="eq-block eq-warn">'+T('eqTrigWindowNote')+'</div>';
+        displaySteps([
+            S('step_identify',{expr:p.left+' '+p.opDisplay+' '+p.right}),
+            S('step_scan',{a:'−2π',b:'2π'}),
+            S('step_rat_ineq_signchart')
+        ]);
+        result.innerHTML=htmlT; revealEqResult(result);
+        hideEqPlot();
+        return;
+    }
+
+    var dfn=makeNumericDeriv(fn);
+    var roots=[],step=0.05;
+    for(var x=-2*Math.PI;x<2*Math.PI;x+=step){
+        var y1=fn(x),y2=fn(x+step);
+        if(isFinite(y1)&&isFinite(y2)&&y1*y2<0){
+            var r=x+step/2;
+            for(var i=0;i<50;i++){var d=dfn(r);if(Math.abs(d)<1e-14)break;r-=fn(r)/d;}
+            r=Math.round(r*1e9)/1e9;
+            if(roots.every(function(e){return Math.abs(e-r)>1e-5;})) roots.push(r);
+        }
+    }
+    if(!roots.length){result.innerHTML='<div class="eq-answer eq-nosol">'+T('eqTrigNoSol')+'</div><div class="eq-block">'+T('eqTrigNoReal')+'</div>';revealEqResult(result);return;}
+    displaySteps([S('step_identify',{expr:p.left+' = '+p.right}),S('step_scan',{a:'−2π',b:'2π'}),S('step_newton'),S('step_trig_convert')]);
+    var html='<div class="eq-answer">'+T('eqTrigTitle')+'</div>';
+    roots.forEach(function(r,i){html+='<div class="eq-answer">'+KX((roots.length>1?'x_'+(i+1):'x')+' = '+fmtNumTex(r),true)+' rad ≈ '+parseFloat((r*180/Math.PI).toFixed(2))+'°</div>';});
+    finishEqResult(result, html);
+    plotEquation(p.left,p.right);
+}
+
+function solveExponential(input,result) {
+    var p=splitOnOp(input); if(!p) throw new Error('bad_exp');
+    var fn=function(x){try{var expr=p.left.replace(/e\^/g,'Math.E**').replace(/exp\(/g,'Math.exp(').replace(/\^/g,'**').replace(/(\d)\s*\*\*\s*x/g,'$1**(x)').replace(/x/g,'('+x+')');return Function('"use strict"; return ('+expr+')')()-safeEval(p.right,x);}catch(e){return NaN;}};
+
+    if (p.op !== '=') {
+        var criticalE=findFunctionCriticalPoints(fn,-100,100,0.05);
+        var segsE=buildSignChartSegments(fn,criticalE,p.op);
+        var intervalE=formatIntervalUnion(segsE, T('eqNoSolutionSet'));
+        var rootsE=criticalE.filter(function(c){return c.kind==='root';});
+        var htmlE='<div class="eq-answer">'+T('eqExpIneqTitle')+'</div>';
+        htmlE+='<div class="eq-answer">'+intervalE+'</div>';
+        if (rootsE.length) htmlE+='<div class="eq-block">'+T('eq_roots')+': '+KX(rootsE.map(function(r,i){return 'x_'+(i+1)+'='+fmtNumTex(r.x);}).join(',\\ '))+'</div>';
+        displaySteps([
+            S('step_identify',{expr:p.left+' '+p.opDisplay+' '+p.right}),
+            S('step_scan',{a:-100,b:100}),
+            S('step_rat_ineq_signchart')
+        ]);
+        result.innerHTML=htmlE; revealEqResult(result);
+        hideEqPlot();
+        return;
+    }
+
+    var dfn=makeNumericDeriv(fn);
+    var roots=[],step=0.1;
+    for(var x=-100;x<100;x+=step){
+        var y1=fn(x),y2=fn(x+step);
+        if(isFinite(y1)&&isFinite(y2)&&y1*y2<0){
+            var r=x+step/2;
+            for(var i=0;i<50;i++){var d=dfn(r);if(Math.abs(d)<1e-14)break;r-=fn(r)/d;}
+            r=Math.round(r*1e9)/1e9;
+            if(roots.every(function(e){return Math.abs(e-r)>1e-5;})) roots.push(r);
+        }
+    }
+    if(!roots.length){result.innerHTML='<div class="eq-answer eq-nosol">'+T('eqExpNoSol')+'</div><div class="eq-block">'+T('eqExpNoReal')+'</div>';revealEqResult(result);return;}
+    displaySteps([S('step_identify',{expr:p.left+' = '+p.right}),S('step_scan',{a:-100,b:100}),S('step_newton')]);
+    var html='<div class="eq-answer">'+T('eqExpTitle')+'</div>';
+    roots.forEach(function(r,i){html+='<div class="eq-answer">'+KX((roots.length>1?'x_'+(i+1):'x')+' = '+fmtNumTex(r),true)+'</div>';});
+    finishEqResult(result, html);
+    plotEquation(p.left,p.right);
+}
+
+function solveLogarithmic(input,result) {
+    var p=splitOnOp(input); if(!p) throw new Error('bad_log');
+    var fn=function(x){try{var expr=p.left.replace(/log10\(/g,'Math.log10(').replace(/log\(/g,'Math.log10(').replace(/ln\(/g,'Math.log(').replace(/x/g,'('+x+')');return Function('"use strict"; return '+expr)()-safeEval(p.right,x);}catch(e){return NaN;}};
+
+    if (p.op !== '=') {
+        var criticalL=findFunctionCriticalPoints(fn,0.001,100000,0.5);
+        var segsL=buildSignChartSegments(fn,criticalL,p.op,1);
+        /* Domain clamp: log is only defined for x>0, so a segment that
+           the sign chart left open-ended at -Infinity actually means
+           "all the way down to (but not including) 0", not "-Infinity". */
+        segsL.forEach(function(s){ if (s.lo===-Infinity) { s.lo=0; s.loInc=false; } });
+        var intervalL=formatIntervalUnion(segsL, T('eqNoSolutionSet'));
+        var rootsL=criticalL.filter(function(c){return c.kind==='root';});
+        var htmlL='<div class="eq-answer">'+T('eqLogIneqTitle')+'</div>';
+        htmlL+='<div class="eq-answer">'+intervalL+'</div>';
+        if (rootsL.length) htmlL+='<div class="eq-block">'+T('eq_roots')+': '+KX(rootsL.map(function(r,i){return 'x_'+(i+1)+'='+fmtNumTex(r.x);}).join(',\\ '))+'</div>';
+        htmlL+='<div class="eq-block"><small>'+T('eqLogDomain')+'</small></div>';
+        displaySteps([
+            S('step_identify',{expr:p.left+' '+p.opDisplay+' '+p.right}),
+            S('step_domain',{domain:'x > 0'}),
+            S('step_rat_ineq_signchart')
+        ]);
+        result.innerHTML=htmlL; revealEqResult(result);
+        hideEqPlot();
+        return;
+    }
+
+    var dfn=makeNumericDeriv(fn);
+    var roots=[],step=0.05;
+    for(var x=0.01;x<1000;x+=step){
+        var y1=fn(x),y2=fn(x+step);
+        if(isFinite(y1)&&isFinite(y2)&&y1*y2<0){
+            var r=x+step/2;
+            for(var i=0;i<50;i++){var d=dfn(r);if(Math.abs(d)<1e-14)break;r-=fn(r)/d;}
+            r=Math.round(r*1e9)/1e9;
+            if(r>0&&roots.every(function(e){return Math.abs(e-r)>1e-5;})) roots.push(r);
+        }
+    }
+    if(!roots.length){result.innerHTML='<div class="eq-answer eq-nosol">'+T('eqLogNoSol')+'</div><div class="eq-block">'+T('eqLogDomain')+'</div>';revealEqResult(result);return;}
+    displaySteps([S('step_identify',{expr:p.left+' = '+p.right}),S('step_domain',{domain:'x > 0'}),S('step_scan',{a:'0.01',b:1000}),S('step_newton')]);
+    var html='<div class="eq-answer">'+T('eqLogTitle')+'</div>';
+    roots.forEach(function(r,i){html+='<div class="eq-answer">'+KX((roots.length>1?'x_'+(i+1):'x')+' = '+fmtNumTex(r),true)+'</div>';});
+    html+='<div class="eq-block"><small>'+T('eqLogDomain')+'</small></div>';
+    finishEqResult(result, html);
+    plotEquation(p.left,p.right);
+}
+
+function solvePolynomial(input,result) {
+    var p=splitOnOp(input); if(!p) throw new Error('bad_poly');
+    var fn=function(x){try{return safeEval(p.left,x)-safeEval(p.right,x);}catch(e){return NaN;}};
+
+    if (p.op !== '=') {
+        var criticalP=findFunctionCriticalPoints(fn,-500,500,0.1);
+        var segsP=buildSignChartSegments(fn,criticalP,p.op);
+        var intervalP=formatIntervalUnion(segsP, T('eqNoSolutionSet'));
+        var rootsP=criticalP.filter(function(c){return c.kind==='root';});
+        var htmlP='<div class="eq-answer">'+T('eqPolyIneqTitle')+'</div>';
+        htmlP+='<div class="eq-answer">'+intervalP+'</div>';
+        if (rootsP.length) htmlP+='<div class="eq-block">'+T('eq_roots')+': '+KX(rootsP.map(function(r,i){return 'x_'+(i+1)+'='+fmtNumTex(r.x);}).join(',\\ '))+'</div>';
+        displaySteps([
+            S('step_identify',{expr:p.left+' '+p.opDisplay+' '+p.right}),
+            S('step_scan',{a:-500,b:500}),
+            S('step_rat_ineq_signchart')
+        ]);
+        result.innerHTML=htmlP; revealEqResult(result);
+        hideEqPlot();
+        return;
+    }
+
+    var dfn=makeNumericDeriv(fn);
+    var roots=[];
+    var scan=function(from,to,step){
+        for(var x=from;x<to;x+=step){
+            var y1=fn(x),y2=fn(x+step);
+            if(isFinite(y1)&&isFinite(y2)&&y1*y2<0){
+                var r=x+step/2;
+                for(var i=0;i<60;i++){var fv=fn(r),d=dfn(r);if(Math.abs(fv)<1e-12)break;if(Math.abs(d)<1e-14)break;r-=fv/d;}
+                r=Math.round(r*1e9)/1e9;
+                if(isFinite(r)&&roots.every(function(e){return Math.abs(e-r)>1e-5;})) roots.push(r);
+            }
+        }
+    };
+    scan(-50,50,0.05); scan(-500,-50,0.5); scan(50,500,0.5);
+    if(!roots.length){result.innerHTML='<div class="eq-answer eq-nosol">'+(T('eqPolyNoSol')||'No real roots found')+'</div><div class="eq-block">'+(T('eqPolyOnlyComplex')||'Only complex roots.')+'</div>';revealEqResult(result);return;}
+    roots.sort(function(a,b){return a-b;});
+    displaySteps([S('step_identify',{expr:p.left+' = '+p.right}),S('step_scan',{a:-500,b:500}),S('step_newton'),S('step_count',{n:roots.length})]);
+    var titleFn=T('eqPolyTitle');
+    var html='<div class="eq-answer">'+(typeof titleFn==='function'?titleFn(roots.length):(titleFn||'Found '+roots.length+' root(s)'))+'</div>';
+    roots.forEach(function(r,i){html+='<div class="eq-answer">'+KX((roots.length>1?'x_'+(i+1):'x')+' = '+fmtNumTex(r),true)+'</div>';});
+    html+='<div class="eq-block"><small>'+(T('eqPolyMethod')||'Newton-Raphson')+'</small></div>';
+    finishEqResult(result, html);
+    plotEquation(p.left,p.right);
+}
+
+/* ── Parametric (λ) linear equations ──────────────────────────
+   Solves A(λ)x + B(λ) = 0 where A and B are recovered numerically
+   (no symbolic parsing) — same finite-difference approach as
+   extractCubicCoeffs(), extended to two variables. For a fixed λ the
+   equation must be linear in x, so A(λ),B(λ) come from 2 x-samples.
+   A(λ),B(λ) themselves are allowed up to QUADRATIC in λ — plain-
+   linear coefficients cover most textbook problems, but the classic
+   identity-producing pattern "(λ-1)x = λ² - 1" needs a quadratic
+   B(λ), and a quadratic A(λ) can legitimately produce two critical λ
+   values (e.g. "(λ²-1)x = λ-1"). A 4th sample point cross-checks the
+   fit and flags anything of genuinely higher degree (or non-
+   polynomial, like sin(λ)) as unsupported rather than guessing. ── */
+function safeEvalParam(expr, xv, lv) {
+    var s = expr
+        .replace(/²/g,'**2').replace(/³/g,'**3').replace(/\^/g,'**')
+        .replace(/×/g,'*').replace(/÷/g,'/')
+        .replace(/(\d)(x)/g,'$1*$2').replace(/(\d)(λ)/g,'$1*$2')
+        .replace(/x/g,'('+xv+')').replace(/λ/g,'('+lv+')');
+    return Function('"use strict"; return (' + fixImplicitMult(s) + ')')();
+}
+
+function fitQuadratic(f0,f1,f2) {
+    var c0=f0, c2=(f2-2*f1+f0)/2, c1=(f1-f0)-c2;
+    return {c2:c2,c1:c1,c0:c0};
+}
+
+function evalPoly2(co,lam){ return co.c2*lam*lam+co.c1*lam+co.c0; }
+
+function extractParamModel(p) {
+    function evalDiff(xv,lv){ return safeEvalParam(p.left,xv,lv)-safeEvalParam(p.right,xv,lv); }
+    function AB(lv){ var f0=evalDiff(0,lv), f1=evalDiff(1,lv); return {A:f1-f0, B:f0}; }
+    var s0=AB(0), s1=AB(1), s2=AB(2);
+    var Ac=fitQuadratic(s0.A,s1.A,s2.A), Bc=fitQuadratic(s0.B,s1.B,s2.B);
+    var s3=AB(3);
+    var predA3=evalPoly2(Ac,3), predB3=evalPoly2(Bc,3);
+    var tolA=1e-6*Math.max(1,Math.abs(s3.A)), tolB=1e-6*Math.max(1,Math.abs(s3.B));
+    var valid=Math.abs(predA3-s3.A)<tolA && Math.abs(predB3-s3.B)<tolB;
+    return {A:Ac, B:Bc, valid:valid};
+}
+
+/* Formats c2λ²+c1λ+c0 as LaTeX, omitting zero terms and 1/-1 coefficients. */
+function fmtPoly2Lambda(co) {
+    var c2=co.c2,c1=co.c1,c0=co.c0, terms=[];
+    if (Math.abs(c2)>1e-9) {
+        if (Math.abs(c2-1)<1e-9) terms.push('\\lambda^2');
+        else if (Math.abs(c2+1)<1e-9) terms.push('-\\lambda^2');
+        else terms.push(fmtNumTex(c2)+'\\lambda^2');
+    }
+    if (Math.abs(c1)>1e-9) {
+        var piece;
+        if (Math.abs(c1-1)<1e-9) piece='\\lambda';
+        else if (Math.abs(c1+1)<1e-9) piece='-\\lambda';
+        else piece=fmtNumTex(c1)+'\\lambda';
+        if (terms.length && piece[0]!=='-') terms.push(' + '+piece);
+        else if (terms.length) terms.push(' '+piece);
+        else terms.push(piece);
+    }
+    if (Math.abs(c0)>1e-9 || terms.length===0) {
+        if (terms.length===0) terms.push(fmtNumTex(c0));
+        else terms.push((c0>=0?' + ':' - ')+fmtNumTex(Math.abs(c0)));
+    }
+    return terms.join('');
+}
+
+/* Real λ roots of c2λ²+c1λ+c0=0 (0, 1, or 2 of them), ascending. */
+function findCriticalLambdas(co) {
+    var c2=co.c2,c1=co.c1,c0=co.c0;
+    if (Math.abs(c2)<1e-9) {
+        if (Math.abs(c1)<1e-9) return [];
+        return [-c0/c1];
+    }
+    var disc=c1*c1-4*c2*c0;
+    if (disc<-1e-9) return [];
+    disc=Math.max(disc,0);
+    var sq=Math.sqrt(disc), r1=(-c1+sq)/(2*c2), r2=(-c1-sq)/(2*c2);
+    if (Math.abs(r1-r2)<1e-9) return [r1];
+    return r1<r2 ? [r1,r2] : [r2,r1];
+}
+
+var _paramState = null;
+
+function solveParametric(input, result) {
+    var p=splitOnOp(input);
+    if (!p || p.op!=='=') {
+        showEqWarning(result, 'eqParamOnlyEquation');
+        _paramState=null; _paramQuadState=null; return;
+    }
+
+    /* Try the quadratic-in-x model first. If it fits AND a(λ) isn't
+       identically zero, this really is a quadratic-in-x parametric
+       equation — hand off entirely to the quadratic branch. If a(λ)
+       IS identically zero, the equation is genuinely linear-in-x, so
+       reuse b(λ),c(λ) as this (unchanged) branch's A(λ),B(λ) rather
+       than re-deriving them with a second finite-difference pass. */
+    var quadModel;
+    try { quadModel=extractParamModelQuad(p); } catch(e) { quadModel={valid:false}; }
+    var quadAIsZeroPoly = quadModel.valid && Math.abs(quadModel.a.c2)<1e-9 && Math.abs(quadModel.a.c1)<1e-9 && Math.abs(quadModel.a.c0)<1e-9;
+
+    if (quadModel.valid && !quadAIsZeroPoly) {
+        _paramState=null;
+        solveParametricQuadX(p, quadModel, result);
+        return;
+    }
+
+    var model;
+    if (quadModel.valid && quadAIsZeroPoly) {
+        model = {A:quadModel.b, B:quadModel.c, valid:true};
+    } else {
+        try { model=extractParamModel(p); } catch(e) { model={valid:false}; }
+    }
+    if (!model.valid) {
+        showEqWarning(result, 'eqParamNotSupported');
+        _paramState=null; _paramQuadState=null; return;
+    }
+
+    var A=model.A, B=model.B;
+    var html='<div class="eq-answer">'+T('eqParamTitle')+'</div>';
+    html+='<div class="eq-block">'+KX('\\left('+fmtPoly2Lambda(A)+'\\right)\\cdot x + \\left('+fmtPoly2Lambda(B)+'\\right) = 0')+'</div>';
+
+    var aIsZeroPoly = Math.abs(A.c2)<1e-9 && Math.abs(A.c1)<1e-9 && Math.abs(A.c0)<1e-9;
+    var aIsConstant = Math.abs(A.c2)<1e-9 && Math.abs(A.c1)<1e-9;
+
+    if (aIsZeroPoly) {
+        var bIsZeroPoly = Math.abs(B.c2)<1e-9 && Math.abs(B.c1)<1e-9 && Math.abs(B.c0)<1e-9;
+        html += '<div class="eq-block'+(bIsZeroPoly?'':' eq-warn')+'">'+(bIsZeroPoly?T('eqParamNoXAlwaysIdentity'):T('eqParamNoXTerm'))+'</div>';
+        finishEqResult(result, html);
+        _paramState=null; _paramQuadState=null; return;
+    }
+
+    var criticals = aIsConstant ? [] : findCriticalLambdas(A);
+    var generalFormula = 'x(\\lambda) = \\dfrac{-\\left('+fmtPoly2Lambda(B)+'\\right)}{'+fmtPoly2Lambda(A)+'}';
+
+    if (!criticals.length) {
+        html += '<div class="eq-block">'+T('eqParamAlwaysUnique')+': '+KX(generalFormula)+'</div>';
+    } else {
+        criticals.forEach(function(lc){
+            var Bval=evalPoly2(B,lc);
+            var kind = Math.abs(Bval)<1e-6 ? T('eqIdentityTrue') : T('eqParamImpossible');
+            html += '<div class="eq-block">'+T('eqParamSpecialCase')+' ('+KX('\\lambda = '+fmtNumTex(lc))+'): '+kind+'</div>';
+        });
+        var exclList = criticals.map(function(lc){return fmtNumTex(lc);}).join(',\\ ');
+        html += '<div class="eq-block">'+T('eqParamGeneralCase')+' ('+KX('\\lambda \\notin \\{'+exclList+'\\}')+'): '+KX(generalFormula)+'</div>';
+    }
+
+    var sliderMin,sliderMax,sliderDefault;
+    if (criticals.length) {
+        sliderMin=Math.round((Math.min.apply(null,criticals)-5)*10)/10;
+        sliderMax=Math.round((Math.max.apply(null,criticals)+5)*10)/10;
+        sliderDefault=criticals[0];
+    } else {
+        sliderMin=-10; sliderMax=10; sliderDefault=0;
+    }
+
+    html += '<div class="eq-block eq-slider-block">';
+    html += '<div class="eq-muted-label">'+T('eqParamSliderLabel')+' — λ = <strong id="param-lambda-value">'+fmtNum(sliderDefault)+'</strong></div>';
+    html += '<input type="range" id="param-lambda-slider" min="'+sliderMin+'" max="'+sliderMax+'" step="0.1" value="'+sliderDefault+'" oninput="updateParamLive(this.value)" class="eq-range">';
+    html += '<div id="param-live-readout" class="eq-slider-readout"></div>';
+    html += '</div>';
+
+    displaySteps([
+        S('step_identify',{expr:p.left+' = '+p.right}),
+        S('step_param_ab'),
+        S('step_param_cases')
+    ]);
+    finishEqResult(result, html);
+
+    _paramState={A:A,B:B}; _paramQuadState=null;
+    updateParamLive(sliderDefault);
+}
+
+function updateParamLive(lamStr) {
+    var ps=_paramState; if (!ps) return;
+    var lam=parseFloat(lamStr);
+    var labelEl=document.getElementById('param-lambda-value');
+    if (labelEl) labelEl.textContent=fmtNum(lam);
+    var readout=document.getElementById('param-live-readout');
+    if (!readout) return;
+    var Aval=evalPoly2(ps.A,lam), Bval=evalPoly2(ps.B,lam);
+    if (Math.abs(Aval)<1e-6) {
+        if (Math.abs(Bval)<1e-6) {
+            readout.className='eq-block';
+            readout.innerHTML=T('eqIdentityTrue');
+        } else {
+            readout.className='eq-block eq-warn';
+            readout.innerHTML='⚠️ '+T('eqParamImpossible');
+        }
+    } else {
+        readout.className='eq-block';
+        readout.innerHTML=KX('x = '+fmtNumTex(-Bval/Aval),true);
+    }
+}
+/* ── Parametric (λ) quadratic-in-x equations ──────────────────
+   Extends the linear-in-x feature above to a(λ)x² + b(λ)x + c(λ) = 0,
+   with a,b,c each recovered up to quadratic in λ (same finite-
+   difference approach, one level deeper). solveParametric() below
+   dispatches here only when a(λ) is genuinely non-zero; if a(λ)≡0 it
+   falls back to the linear branch above unchanged, reusing b(λ),c(λ)
+   as that branch's A(λ),B(λ).
+   Δ(λ)=b(λ)²−4a(λ)c(λ) is degree ≤4 in λ, so its real roots need a
+   real quartic root-finder, not the quadratic formula. A plain sign-
+   change scan (as used elsewhere, e.g. solvePolynomial) misses a
+   root where Δ(λ) only *touches* zero without crossing — a perfect-
+   square family like x²+2λx+λ²=0 has Δ(λ)≡0 for every λ. realRootsPoly
+   instead finds the derivative's real roots first (recursing to the
+   closed-form quadratic) and tests those directly for a touching
+   zero, so it can't miss an even-multiplicity root the way a plain
+   scan can. ── */
+function evalPolyArr(coeffs, x) {
+    var v=0;
+    for (var i=0;i<coeffs.length;i++) v=v*x+coeffs[i];
+    return v;
+}
+function cauchyBoundPoly(coeffs) {
+    var lead=coeffs[0], maxRatio=0;
+    for (var i=1;i<coeffs.length;i++) maxRatio=Math.max(maxRatio,Math.abs(coeffs[i]/lead));
+    return 1+maxRatio;
+}
+function bisectPoly(coeffs, lo, hi, flo) {
+    for (var i=0;i<80;i++) {
+        var mid=(lo+hi)/2, fm=evalPolyArr(coeffs,mid);
+        if (Math.abs(fm)<1e-13) return mid;
+        if ((flo<0)===(fm<0)) { lo=mid; flo=fm; } else { hi=mid; }
+    }
+    return (lo+hi)/2;
+}
+/* Real roots of a degree≤4 polynomial (coeffs highest-degree-first),
+   found via the derivative's own real roots rather than a plain
+   scan — see the comment block above for why that matters here. */
+function realRootsPoly(coeffsIn) {
+    var coeffs=coeffsIn.slice();
+    while (coeffs.length>1 && Math.abs(coeffs[0])<1e-12) coeffs.shift();
+    var deg=coeffs.length-1;
+    if (deg<=0) return [];
+    if (deg===1) return [-coeffs[1]/coeffs[0]];
+    if (deg===2) {
+        var a=coeffs[0],b=coeffs[1],c=coeffs[2], disc=b*b-4*a*c;
+        var scale=Math.max(1,a*a,b*b,c*c);
+        if (disc<-1e-9*scale) return [];
+        disc=Math.max(disc,0);
+        var sq=Math.sqrt(disc), r1=(-b+sq)/(2*a), r2=(-b-sq)/(2*a);
+        if (Math.abs(r1-r2)<1e-6*Math.max(1,Math.abs(r1))) return [(r1+r2)/2];
+        return r1<r2?[r1,r2]:[r2,r1];
+    }
+    var deriv=[];
+    for (var i=0;i<deg;i++) deriv.push(coeffs[i]*(deg-i));
+    var crit=realRootsPoly(deriv).sort(function(x,y){return x-y;});
+    var B=cauchyBoundPoly(coeffs);
+    var bounds=[-B].concat(crit).concat([B]);
+    var roots=[];
+    function addRoot(r){ if (roots.every(function(e){return Math.abs(e-r)>1e-6*Math.max(1,Math.abs(r));})) roots.push(r); }
+    crit.forEach(function(cp){
+        var v=evalPolyArr(coeffs,cp), scale=Math.max(1,Math.abs(cp));
+        if (Math.abs(v)<1e-6*scale) addRoot(cp);
+    });
+    for (var k=0;k<bounds.length-1;k++){
+        var lo=bounds[k], hi=bounds[k+1];
+        var flo=evalPolyArr(coeffs,lo), fhi=evalPolyArr(coeffs,hi);
+        if (!isFinite(flo)||!isFinite(fhi)) continue;
+        if (Math.abs(flo)<1e-13) { addRoot(lo); continue; }
+        if (Math.abs(fhi)<1e-13) { addRoot(hi); continue; }
+        if ((flo<0)!==(fhi<0)) addRoot(bisectPoly(coeffs,lo,hi,flo));
+    }
+    roots.sort(function(x,y){return x-y;});
+    return roots;
+}
+
+/* Multiplies two λ-quadratics {c2,c1,c0}; returns [λ⁴,λ³,λ²,λ¹,λ⁰]. */
+function polyMulQuad(P,Q) {
+    return [P.c2*Q.c2, P.c2*Q.c1+P.c1*Q.c2, P.c2*Q.c0+P.c1*Q.c1+P.c0*Q.c2, P.c1*Q.c0+P.c0*Q.c1, P.c0*Q.c0];
+}
+function computeDeltaCoeffs(a,b,c) {
+    var bb=polyMulQuad(b,b), ac=polyMulQuad(a,c), delta=[];
+    for (var i=0;i<5;i++) delta.push(bb[i]-4*ac[i]);
+    return delta;
+}
+/* Formats a polynomial-in-λ of any degree as LaTeX (coeffs highest-
+   degree-first) — generalizes fmtPoly2Lambda above for Δ(λ), which
+   is degree ≤4 rather than exactly 2. */
+function fmtPolyLambda(coeffs) {
+    var deg=coeffs.length-1, terms=[];
+    for (var i=0;i<coeffs.length;i++) {
+        var coef=coeffs[i], power=deg-i;
+        if (Math.abs(coef)<1e-9) continue;
+        var isFirst=terms.length===0;
+        var sign=coef<0?(isFirst?'-':' - '):(isFirst?'':' + ');
+        var mag=Math.abs(coef);
+        var varPart=power===0?'':(power===1?'\\lambda':'\\lambda^'+power);
+        var magPart=(Math.abs(mag-1)<1e-9 && power!==0)?'':fmtNumTex(mag);
+        terms.push(sign+magPart+varPart);
+    }
+    return terms.length?terms.join(''):fmtNumTex(0);
+}
+
+function extractParamModelQuad(p) {
+    function evalDiff(xv,lv){ return safeEvalParam(p.left,xv,lv)-safeEvalParam(p.right,xv,lv); }
+    function abcAt(lv){
+        var f0=evalDiff(0,lv), f1=evalDiff(1,lv), f2=evalDiff(2,lv);
+        var fit=fitQuadratic(f0,f1,f2); // {c2:a(lv), c1:b(lv), c0:c(lv)}
+        var f3=evalDiff(3,lv), pred3=fit.c2*9+fit.c1*3+fit.c0;
+        var tol=1e-6*Math.max(1,Math.abs(f3));
+        return {a:fit.c2,b:fit.c1,c:fit.c0, xOK:Math.abs(pred3-f3)<tol};
+    }
+    var s0=abcAt(0), s1=abcAt(1), s2=abcAt(2), s3=abcAt(3);
+    var ac=fitQuadratic(s0.a,s1.a,s2.a), bc=fitQuadratic(s0.b,s1.b,s2.b), cc=fitQuadratic(s0.c,s1.c,s2.c);
+    var predA3=evalPoly2(ac,3), predB3=evalPoly2(bc,3), predC3=evalPoly2(cc,3);
+    var tolA=1e-6*Math.max(1,Math.abs(s3.a)), tolB=1e-6*Math.max(1,Math.abs(s3.b)), tolC=1e-6*Math.max(1,Math.abs(s3.c));
+    var valid = s0.xOK&&s1.xOK&&s2.xOK&&s3.xOK &&
+        Math.abs(predA3-s3.a)<tolA && Math.abs(predB3-s3.b)<tolB && Math.abs(predC3-s3.c)<tolC;
+    return {a:ac, b:bc, c:cc, valid:valid};
+}
+
+var _paramQuadState=null;
+
+/* Special-case text (unique / impossible / identity if a(λ)=0 at this
+   point; otherwise a double root) for one isolated critical λ. */
+function fmtParamQuadCase(a,b,c,lam) {
+    var aVal=evalPoly2(a,lam);
+    var head=T('eqParamSpecialCase')+' ('+KX('\\lambda = '+fmtNumTex(lam))+'): ';
+    if (Math.abs(aVal)<1e-6) {
+        var bVal=evalPoly2(b,lam), cVal=evalPoly2(c,lam);
+        if (Math.abs(bVal)>=1e-6) return head+KX('x = '+fmtNumTex(-cVal/bVal),true);
+        if (Math.abs(cVal)<1e-6) return head+T('eqIdentityTrue');
+        return head+T('eqParamImpossible');
+    }
+    var bVal=evalPoly2(b,lam);
+    return head+T('eqDoubleRoot')+' '+KX('x = '+fmtNumTex(-bVal/(2*aVal)),true);
+}
+
+function solveParametricQuadX(p, model, result) {
+    var a=model.a, b=model.b, c=model.c;
+    var html='<div class="eq-answer">'+T('eqParamQuadTitle')+'</div>';
+    html+='<div class="eq-block">'+KX('\\left('+fmtPoly2Lambda(a)+'\\right)x^2 + \\left('+fmtPoly2Lambda(b)+'\\right)x + \\left('+fmtPoly2Lambda(c)+'\\right) = 0')+'</div>';
+
+    var deltaCoeffs=computeDeltaCoeffs(a,b,c);
+    var deltaIsZeroPoly=deltaCoeffs.every(function(v){return Math.abs(v)<1e-9;});
+    html+='<div class="eq-block">'+KX('\\Delta(\\lambda) = '+(deltaIsZeroPoly?'0':fmtPolyLambda(deltaCoeffs)))+'</div>';
+
+    var aRoots=findCriticalLambdas(a); // reuses the existing quadratic-in-λ root finder
+    var deltaRoots=deltaIsZeroPoly?[]:realRootsPoly(deltaCoeffs);
+
+    var crits=[];
+    function addCrit(lam,type){
+        for (var i=0;i<crits.length;i++){
+            if (Math.abs(crits[i].lam-lam)<1e-6*Math.max(1,Math.abs(lam))) { if (type==='a') crits[i].type='a'; return; }
+        }
+        crits.push({lam:lam,type:type});
+    }
+    deltaRoots.forEach(function(r){addCrit(r,'delta');});
+    aRoots.forEach(function(r){addCrit(r,'a');});
+    crits.sort(function(x,y){return x.lam-y.lam;});
+
+    var quadFormula='x(\\lambda) = \\dfrac{-\\left('+fmtPoly2Lambda(b)+'\\right)\\pm\\sqrt{\\Delta(\\lambda)}}{2\\left('+fmtPoly2Lambda(a)+'\\right)}';
+
+    if (deltaIsZeroPoly) {
+        html+='<div class="eq-block">'+T('eqParamQuadAlwaysDouble')+': '+KX('x(\\lambda) = \\dfrac{-\\left('+fmtPoly2Lambda(b)+'\\right)}{2\\left('+fmtPoly2Lambda(a)+'\\right)}')+'</div>';
+        aRoots.forEach(function(lam){ html+='<div class="eq-block">'+fmtParamQuadCase(a,b,c,lam)+'</div>'; });
+    } else {
+        var n=crits.length;
+        for (var i=0;i<=n;i++) {
+            var loLam=i===0?null:crits[i-1].lam, hiLam=i===n?null:crits[i].lam;
+            var midLam=(loLam===null&&hiLam===null)?0:(loLam===null?hiLam-1:(hiLam===null?loLam+1:(loLam+hiLam)/2));
+            var dVal=evalPolyArr(deltaCoeffs,midLam);
+            var rangeLabel=loLam===null?'\\lambda < '+fmtNumTex(hiLam):(hiLam===null?'\\lambda > '+fmtNumTex(loLam):fmtNumTex(loLam)+' < \\lambda < '+fmtNumTex(hiLam));
+            html+='<div class="eq-block">'+KX(rangeLabel)+': '+(dVal>0?(T('eqParamTwoRootsAlways')+' '+KX(quadFormula)):T('eqNoRealRootsDelta'))+'</div>';
+            if (i<n) html+='<div class="eq-block">'+fmtParamQuadCase(a,b,c,crits[i].lam)+'</div>';
+        }
+    }
+
+    var allLams=crits.map(function(cr){return cr.lam;});
+    var sliderMin,sliderMax,sliderDefault;
+    if (allLams.length) {
+        sliderMin=Math.round((Math.min.apply(null,allLams)-5)*10)/10;
+        sliderMax=Math.round((Math.max.apply(null,allLams)+5)*10)/10;
+        sliderDefault=allLams[0];
+    } else { sliderMin=-10; sliderMax=10; sliderDefault=0; }
+
+    html+='<div class="eq-block eq-slider-block">';
+    html+='<div class="eq-muted-label">'+T('eqParamSliderLabel')+' — λ = <strong id="param-quad-lambda-value">'+fmtNum(sliderDefault)+'</strong></div>';
+    html+='<input type="range" id="param-quad-lambda-slider" min="'+sliderMin+'" max="'+sliderMax+'" step="0.1" value="'+sliderDefault+'" oninput="updateParamLiveQuad(this.value)" class="eq-range">';
+    html+='<div id="param-quad-live-readout" class="eq-slider-readout"></div>';
+    html+='</div>';
+
+    displaySteps([
+        S('step_identify',{expr:p.left+' = '+p.right}),
+        S('step_param_quad_abc'),
+        S('step_param_quad_delta')
+    ]);
+    finishEqResult(result, html);
+
+    _paramQuadState={a:a,b:b,c:c};
+    updateParamLiveQuad(sliderDefault);
+}
+
+function updateParamLiveQuad(lamStr) {
+    var ps=_paramQuadState; if (!ps) return;
+    var lam=parseFloat(lamStr);
+    var labelEl=document.getElementById('param-quad-lambda-value');
+    if (labelEl) labelEl.textContent=fmtNum(lam);
+    var readout=document.getElementById('param-quad-live-readout');
+    if (!readout) return;
+    var aVal=evalPoly2(ps.a,lam), bVal=evalPoly2(ps.b,lam), cVal=evalPoly2(ps.c,lam);
+    if (Math.abs(aVal)<1e-6) {
+        if (Math.abs(bVal)>=1e-6) { readout.className='eq-block'; readout.innerHTML=KX('x = '+fmtNumTex(-cVal/bVal),true); }
+        else if (Math.abs(cVal)<1e-6) { readout.className='eq-block'; readout.innerHTML=T('eqIdentityTrue'); }
+        else { readout.className='eq-block eq-warn'; readout.innerHTML='⚠️ '+T('eqParamImpossible'); }
+        return;
+    }
+    var disc=bVal*bVal-4*aVal*cVal;
+    if (disc<-1e-9) {
+        var re=-bVal/(2*aVal), im=Math.sqrt(-disc)/(2*aVal);
+        readout.className='eq-block';
+        readout.innerHTML=KX('x_{1,2} = '+fmtNumTex(re)+' \\pm '+fmtNumTex(Math.abs(im))+'i',true)+' <small>'+T('eqNoRealRootsDelta')+'</small>';
+    } else if (Math.abs(disc)<1e-9) {
+        readout.className='eq-block';
+        readout.innerHTML=KX('x = '+fmtNumTex(-bVal/(2*aVal)),true)+' <small>'+T('eqDoubleRoot')+'</small>';
+    } else {
+        var sq=Math.sqrt(disc), x1=(-bVal+sq)/(2*aVal), x2=(-bVal-sq)/(2*aVal);
+        readout.className='eq-block';
+        readout.innerHTML=KX('x_1='+fmtNumTex(x1)+',\\ x_2='+fmtNumTex(x2),true);
+    }
+}
+
+/* ── Parametric (λ) 2×2 linear systems ─────────────────────────
+   a1(λ)x + b1(λ)y = c1(λ)
+   a2(λ)x + b2(λ)y = c2(λ)
+   with all six coefficients up to quadratic in λ — same finite-
+   difference approach as the rest of this file, parsing x AND y at
+   each sampled λ (via safeEvalParamXY).
+   Δ(λ)=a1b2−a2b1, Δx(λ)=c1b2−c2b1, Δy(λ)=a1c2−a2c1 are each degree ≤4
+   in λ, same shape as Δ(λ) in the quadratic-in-x branch above, so
+   they reuse polyMulQuad + realRootsPoly as-is. Unlike that branch,
+   only whether Δ(λ) is zero matters here (not its sign), so one
+   general Cramer formula covers every λ outside the critical points
+   — matching the simpler structure of the original linear-in-x
+   branch rather than the quadratic-in-x one. ── */
+function safeEvalParamXY(expr, xv, yv, lv) {
+    var s = expr
+        .replace(/²/g,'**2').replace(/³/g,'**3').replace(/\^/g,'**')
+        .replace(/×/g,'*').replace(/÷/g,'/')
+        .replace(/(\d)(x|y|λ)/g,'$1*$2')
+        .replace(/x/g,'('+xv+')').replace(/y/g,'('+yv+')').replace(/λ/g,'('+lv+')');
+    return Function('"use strict"; return (' + fixImplicitMult(s) + ')')();
+}
+function subtractPolyArrays(P,Q) { var r=[]; for (var i=0;i<P.length;i++) r.push(P[i]-Q[i]); return r; }
+
+function extractParamSystemEq(eq) {
+    var p=splitOnOp(eq); if (!p) throw new Error('bad');
+    function f(xv,yv,lv){ return safeEvalParamXY(p.left,xv,yv,lv)-safeEvalParamXY(p.right,xv,yv,lv); }
+    function abcAt(lv){
+        var c0=f(0,0,lv), ax=f(1,0,lv)-c0, ay=f(0,1,lv)-c0;
+        return {a:ax, b:ay, c:-c0};
+    }
+    var s0=abcAt(0), s1=abcAt(1), s2=abcAt(2);
+    var ac=fitQuadratic(s0.a,s1.a,s2.a), bc=fitQuadratic(s0.b,s1.b,s2.b), cc=fitQuadratic(s0.c,s1.c,s2.c);
+    var s3=abcAt(3);
+    var predA3=evalPoly2(ac,3), predB3=evalPoly2(bc,3), predC3=evalPoly2(cc,3);
+    var tolA=1e-6*Math.max(1,Math.abs(s3.a)), tolB=1e-6*Math.max(1,Math.abs(s3.b)), tolC=1e-6*Math.max(1,Math.abs(s3.c));
+    var valid = Math.abs(predA3-s3.a)<tolA && Math.abs(predB3-s3.b)<tolB && Math.abs(predC3-s3.c)<tolC;
+    return {a:ac, b:bc, c:cc, valid:valid};
+}
+
+var _paramSystemState=null;
+
+function solveParametricSystem(eq1, eq2, result) {
+    var m1,m2;
+    try { m1=extractParamSystemEq(eq1); } catch(e) { m1={valid:false}; }
+    try { m2=extractParamSystemEq(eq2); } catch(e) { m2={valid:false}; }
+    if (!m1.valid || !m2.valid) {
+        showEqWarning(result, 'eqParamNotSupported');
+        _paramSystemState=null; return;
+    }
+    var a1=m1.a,b1=m1.b,c1=m1.c, a2=m2.a,b2=m2.b,c2=m2.c;
+    var D  = subtractPolyArrays(polyMulQuad(a1,b2), polyMulQuad(a2,b1));
+    var Dx = subtractPolyArrays(polyMulQuad(c1,b2), polyMulQuad(c2,b1));
+    var Dy = subtractPolyArrays(polyMulQuad(a1,c2), polyMulQuad(a2,c1));
+
+    var html='<div class="eq-answer">'+T('eqParamSystemTitle')+'</div>';
+    html+='<div class="eq-block">'+KX('\\left('+fmtPoly2Lambda(a1)+'\\right)x + \\left('+fmtPoly2Lambda(b1)+'\\right)y = \\left('+fmtPoly2Lambda(c1)+'\\right)')+'</div>';
+    html+='<div class="eq-block">'+KX('\\left('+fmtPoly2Lambda(a2)+'\\right)x + \\left('+fmtPoly2Lambda(b2)+'\\right)y = \\left('+fmtPoly2Lambda(c2)+'\\right)')+'</div>';
+
+    var DIsZeroPoly=D.every(function(v){return Math.abs(v)<1e-9;});
+    if (DIsZeroPoly) {
+        var DxIsZeroPoly=Dx.every(function(v){return Math.abs(v)<1e-9;});
+        var DyIsZeroPoly=Dy.every(function(v){return Math.abs(v)<1e-9;});
+        html += DxIsZeroPoly&&DyIsZeroPoly
+            ? '<div class="eq-block">'+T('eqParamSystemAlwaysDependent')+'</div>'
+            : '<div class="eq-block eq-warn">⚠️ '+T('eqParamNotSupported')+'</div>';
+        finishEqResult(result, html);
+        _paramSystemState=null; return;
+    }
+
+    html+='<div class="eq-block">'+KX('\\Delta(\\lambda) = '+fmtPolyLambda(D))+'</div>';
+    html+='<div class="eq-block">'+KX('\\Delta_x(\\lambda) = '+fmtPolyLambda(Dx)+',\\quad \\Delta_y(\\lambda) = '+fmtPolyLambda(Dy))+'</div>';
+
+    var criticals=realRootsPoly(D);
+    criticals.forEach(function(lam){
+        var dxv=evalPolyArr(Dx,lam), dyv=evalPolyArr(Dy,lam);
+        var kind=(Math.abs(dxv)<1e-6 && Math.abs(dyv)<1e-6) ? T('eqInfSolutions') : T('eqParamImpossible');
+        html+='<div class="eq-block">'+T('eqParamSpecialCase')+' ('+KX('\\lambda = '+fmtNumTex(lam))+'): '+kind+'</div>';
+    });
+    var exclList=criticals.map(function(lam){return fmtNumTex(lam);}).join(',\\ ');
+    var generalLabel = criticals.length ? (T('eqParamGeneralCase')+' ('+KX('\\lambda \\notin \\{'+exclList+'\\}')+')') : T('eqParamGeneralCase');
+    html+='<div class="eq-block">'+generalLabel+': '+KX('x(\\lambda)=\\dfrac{\\Delta_x(\\lambda)}{\\Delta(\\lambda)},\\quad y(\\lambda)=\\dfrac{\\Delta_y(\\lambda)}{\\Delta(\\lambda)}')+'</div>';
+
+    var sliderMin,sliderMax,sliderDefault;
+    if (criticals.length) {
+        sliderMin=Math.round((Math.min.apply(null,criticals)-5)*10)/10;
+        sliderMax=Math.round((Math.max.apply(null,criticals)+5)*10)/10;
+        sliderDefault=criticals[0];
+    } else { sliderMin=-10; sliderMax=10; sliderDefault=0; }
+
+    html+='<div class="eq-block eq-slider-block">';
+    html+='<div class="eq-muted-label">'+T('eqParamSliderLabel')+' — λ = <strong id="param-sys-lambda-value">'+fmtNum(sliderDefault)+'</strong></div>';
+    html+='<input type="range" id="param-sys-lambda-slider" min="'+sliderMin+'" max="'+sliderMax+'" step="0.1" value="'+sliderDefault+'" oninput="updateParamLiveSystem(this.value)" class="eq-range">';
+    html+='<div id="param-sys-live-readout" class="eq-slider-readout"></div>';
+    html+='</div>';
+
+    displaySteps([
+        S('step_sys_standard',{eq1:fmtPoly2Lambda(a1)+'x + '+fmtPoly2Lambda(b1)+'y = '+fmtPoly2Lambda(c1), eq2:fmtPoly2Lambda(a2)+'x + '+fmtPoly2Lambda(b2)+'y = '+fmtPoly2Lambda(c2)}),
+        S('step_param_sys_det')
+    ]);
+    finishEqResult(result, html);
+
+    _paramSystemState={a1:a1,b1:b1,c1:c1,a2:a2,b2:b2,c2:c2};
+    updateParamLiveSystem(sliderDefault);
+}
+
+function updateParamLiveSystem(lamStr) {
+    var ps=_paramSystemState; if (!ps) return;
+    var lam=parseFloat(lamStr);
+    var labelEl=document.getElementById('param-sys-lambda-value');
+    if (labelEl) labelEl.textContent=fmtNum(lam);
+    var readout=document.getElementById('param-sys-live-readout');
+    if (!readout) return;
+    var a1=evalPoly2(ps.a1,lam), b1=evalPoly2(ps.b1,lam), c1=evalPoly2(ps.c1,lam);
+    var a2=evalPoly2(ps.a2,lam), b2=evalPoly2(ps.b2,lam), c2=evalPoly2(ps.c2,lam);
+    var det=a1*b2-a2*b1;
+    var dx=c1*b2-c2*b1, dy=a1*c2-a2*c1;
+    if (Math.abs(det)<1e-9) {
+        if (Math.abs(dx)<1e-6 && Math.abs(dy)<1e-6) {
+            readout.className='eq-block'; readout.innerHTML=T('eqInfSolutions');
+        } else {
+            readout.className='eq-block eq-warn'; readout.innerHTML='⚠️ '+T('eqParamImpossible');
+        }
+        return;
+    }
+    readout.className='eq-block';
+    readout.innerHTML=KX('x = '+fmtNumTex(dx/det)+',\\quad y = '+fmtNumTex(dy/det),true);
+}
+
+function setEqExample(mode) {
+    MultiCalc.state.eqMode = mode;
+    document.querySelectorAll('.eq-chip').forEach(function(c){c.classList.remove('active');});
+    var chipMap={linear:'chip-linear',quadratic:'chip-quadratic',cubic:'chip-cubic',absolute:'chip-abs',rational:'chip-rat',inequality:'chip-ineq',system:'chip-sys',system3:'chip-sys3',trig:'chip-trig',exp:'chip-exp',log:'chip-log',poly:'chip-poly',param:'chip-param'};
+    var chip=document.getElementById(chipMap[mode]); if(chip) chip.classList.add('active');
+    var lbl=document.getElementById('eq-main-label'),inp=document.getElementById('eq-input');
+    var row2=document.getElementById('eq-second-row'),row3=document.getElementById('eq-third-row'),lbl2=document.getElementById('eq-label2');
+    row2.style.display='none'; if(row3) row3.style.display='none';
+    var typeExamples={
+        linear:    [['3x−7=2x+5','3x - 7 = 2x + 5'],['4x+2=14','4x + 2 = 14'],['5x−3=2x+9','5x - 3 = 2x + 9']],
+        quadratic: [['x²+5x+6=0','x² + 5x + 6 = 0'],['x²−4=0','x² - 4 = 0'],['2x²−3x−2=0','2x² - 3x - 2 = 0']],
+        cubic:     [['x³−6x²+11x−6=0','x³ - 6x² + 11x - 6 = 0'],['x³−3x=0','x³ - 3x = 0'],['x³−8=0','x³ - 8 = 0']],
+        absolute:  [['|2x−3|=7','|2x - 3| = 7'],['|x+1|=5','|x + 1| = 5'],['|3x−6|=9','|3x - 6| = 9']],
+        rational:  [['(x+1)/(x−2)=3','(x+1)/(x-2) = 3'],['(2x−1)/(x+3)=1','(2x-1)/(x+3) = 1']],
+        inequality:[['2x+1>9','2x + 1 > 9'],['x²−4x≥0','x² - 4x >= 0'],['3x−5<x+7','3x - 5 < x + 7']],
+        trig:      [['sin(x)=0.5','sin(x) = 0.5'],['cos(x)=0','cos(x) = 0'],['tan(x)=1','tan(x) = 1']],
+        exp:       [['2^x=8','2^x = 8'],['3^x=27','3^x = 27'],['e^x=5','e^x = 5']],
+        log:       [['log(x)=2','log(x) = 2'],['ln(x)=1','ln(x) = 1'],['log(x)=0','log(x) = 0']],
+        poly:      [['x^4−5x²+4=0','x^4 - 5x² + 4 = 0'],['x^5−x=0','x^5 - x = 0'],['x^4−16=0','x^4 - 16 = 0']],
+        param:     [['(λ−2)x+3=λ+1','(λ-2)x + 3 = λ + 1'],['(λ−1)x=λ²−1','(λ-1)x = λ² - 1'],['λx−3=2x+λ','λx - 3 = 2x + λ'],['x²−λx+1=0','x² - λx + 1 = 0']],
+    };
+    var t=_eqTranslations[MultiCalc.state.currentLang]||_eqTranslations['en'];
+    var examples={
+        linear:    {ph:'3x - 7 = 2x + 5',         lbl:t.eqLabelLinear||'Linear · e.g. <em>2x + 4 = 10</em>'},
+        quadratic: {ph:'x² + 5x + 6 = 0',         lbl:t.eqLabelQuadratic||'Quadratic · e.g. <em>x² − 5x + 6 = 0</em>'},
+        cubic:     {ph:'x³ - 6x² + 11x - 6 = 0',  lbl:t.eqLabelCubic||'Cubic'},
+        absolute:  {ph:'|2x - 3| = 7',             lbl:t.eqLabelAbsolute||'Absolute value'},
+        rational:  {ph:'(x+1)/(x-2) = 3',          lbl:t.eqLabelRational||'Rational'},
+        inequality:{ph:'2x + 1 > 9',               lbl:t.eqLabelInequality||'Inequality'},
+        system:    {ph:'2x + y = 7',               lbl:t.eqLabel1st||'1st equation'},
+        system3:   {ph:'x + y + z = 6',            lbl:t.eqLabel1st||'1st equation'},
+        trig:      {ph:'sin(x) = 0.5',             lbl:t.eqLabelTrig||'Trigonometric · e.g. <em>sin(x) = 0.5</em>'},
+        exp:       {ph:'2^x = 8',                  lbl:t.eqLabelExp||'Exponential · e.g. <em>2^x = 8</em>'},
+        log:       {ph:'log(x) = 2',               lbl:t.eqLabelLog||'Logarithmic · e.g. <em>log(x) = 2</em>'},
+        poly:      {ph:'x^4 - 5x² + 4 = 0',       lbl:t.eqLabelPoly||'Polynomial · e.g. <em>x^4 − 5x² + 4 = 0</em>'},
+        param:     {ph:'(λ-2)x + 3 = λ + 1',       lbl:t.eqLabelParam||'Parametric · e.g. <em>(λ-2)x + 3 = λ + 1</em>'},
+    };
+    var ex=examples[mode]||examples.linear;
+    lbl.innerHTML=ex.lbl; inp.placeholder=ex.ph; inp.value='';
+    var dynBox=document.getElementById('eq-quick-examples-dynamic');
+    if(dynBox){
+        if(mode==='system'||mode==='system3'){
+            dynBox.innerHTML='<span style="font-size:0.75rem;color:#64748b;font-style:italic;">'+(t.eqTypeSeparateHint||'Type each equation separately.')+'</span>';
+        } else {
+            var modeEx=typeExamples[mode]||[];
+            dynBox.innerHTML=modeEx.map(function(pair){
+                return '<button class="eq-example" onclick="setEqInput(\''+pair[1].replace(/'/g,"\\'")+'\')" >'+pair[0]+'</button>';
+            }).join('');
+        }
+    }
+    if(mode==='system'){
+        row2.style.display='block';
+        if(lbl2) lbl2.innerHTML=(t.eqLabel2nd||'2nd equation');
+        document.getElementById('eq-input2').placeholder='x - y = 1'; document.getElementById('eq-input2').value='';
+    } else if(mode==='system3'){
+        row2.style.display='block'; if(row3) row3.style.display='block';
+        if(lbl2) lbl2.innerHTML=(t.eqLabel2nd||'2nd equation');
+        document.getElementById('eq-input2').placeholder='x + 2y - z = 3'; document.getElementById('eq-input2').value='';
+        var inp3=document.getElementById('eq-input3'); if(inp3){inp3.placeholder='2x - y + z = 5';inp3.value='';}
+        var lbl3=document.querySelector('#eq-third-row .tool-label'); if(lbl3) lbl3.innerHTML=(t.eqLabel3rd||'3rd equation');
+    }
+    hideEqResult(document.getElementById('eq-result'));
+}
+
+function setEqInput(val) {
+    var inp=document.getElementById('eq-input'); if(inp){inp.value=val;inp.focus();}
+}
+
+function insertEqSym(sym) {
+    var ids=['eq-input','eq-input2','eq-input3'];
+    var active=document.activeElement;
+    var inp=(active && ids.indexOf(active.id)!==-1) ? active : document.getElementById('eq-input');
+    var s=inp.selectionStart,e=inp.selectionEnd;
+    inp.value=inp.value.slice(0,s)+sym+inp.value.slice(e);
+    inp.selectionStart=inp.selectionEnd=s+sym.length; inp.focus();
+}
+
+function displaySteps(steps) {
+    var stepsContent=document.getElementById('eq-steps-content'); if(!stepsContent) return;
+    var t=_eqTranslations[MultiCalc.state.currentLang]||_eqTranslations['en'];
+    var html='';
+    steps.forEach(function(step,i){
+        var fmt=step.replace(/([xX]\s*[=<>]=?\s*[-+]?\d*\.?\d+)/g,'<strong style="color:#22d3ee;text-decoration:underline;">$1</strong>');
+        html+='<div style="margin-bottom:14px;padding:16px;background:rgba(30,41,59,0.5);border-left:4px solid #6366f1;border-radius:12px;border:1px solid rgba(99,102,241,0.15);">';
+        html+='<div style="font-weight:800;color:#818cf8;margin-bottom:8px;text-transform:uppercase;font-size:0.75rem;letter-spacing:0.1em;">'+(t.eq_step_prefix||'Step')+' '+(i+1)+'</div>';
+        html+='<div style="line-height:1.6;color:#e2e8f0;font-size:0.95rem;">'+fmt+'</div></div>';
+    });
+    stepsContent.innerHTML=html||'<div style="color:#94a3b8;">'+(t.eqNoStepsYet||'Solve an equation to see detailed steps.')+'</div>';
+}
+
+/* ── Plotly graph functions ── */
+function getEquationGraphLayout(height, titleText, fullscreen) {
+    fullscreen = fullscreen || false;
+    var t = _eqTranslations[MultiCalc.state.currentLang] || _eqTranslations['en'];
+    return {
+        title: titleText ? {text:titleText,font:{color:'#e0e7ff',size:14}} : undefined,
+        paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor: fullscreen?'rgba(0,0,0,0)':'rgba(15,23,42,0.38)',
+        margin:{t:titleText?50:36, r:20, b:fullscreen?60:52, l:52},
+        xaxis:{title:{text:(t.graph_xaxis||'x'),font:{color:'#c4b5fd'}},color:'#cbd5e1',gridcolor:'rgba(148,163,184,0.13)',zeroline:true,zerolinecolor:'rgba(34,211,238,0.55)',zerolinewidth:2,tickfont:{color:'#94a3b8',size:fullscreen?11:10},automargin:true,nticks:fullscreen?10:8},
+        yaxis:{title:{text:(t.graph_yaxis||'f(x)'),font:{color:'#c4b5fd'}},color:'#cbd5e1',gridcolor:'rgba(148,163,184,0.13)',zeroline:true,zerolinecolor:'rgba(34,211,238,0.55)',zerolinewidth:2,tickfont:{color:'#94a3b8',size:fullscreen?11:10},automargin:true,nticks:fullscreen?8:7,tickformat:'.3~g'},
+        legend: fullscreen
+            ? {orientation:'h',y:-0.14,x:0,font:{color:'#cbd5e1'},bgcolor:'rgba(0,0,0,0)'}
+            : {orientation:'h',y:1.0,x:0,xanchor:'left',yanchor:'bottom',font:{color:'#cbd5e1',size:11},bgcolor:'rgba(15,23,42,0.7)',bordercolor:'rgba(99,102,241,0.2)',borderwidth:1},
+        hovermode:'x unified',
+        dragmode: fullscreen ? 'pan' : false,
+        modebar:{bgcolor:'rgba(0,0,0,0)',color:'#475569',activecolor:'#818cf8'},
+    };
+}
+
+function getEquationPlotConfig(fullscreen) {
+    fullscreen = !!fullscreen;
+    /* No modebar (search/pan/zoom-in/zoom-out/autoscale/home icons) on
+       either graph — replaced with native gestures: scrollZoom covers
+       both mouse-wheel zoom on desktop AND pinch-to-zoom on touch,
+       and dragmode:'pan' (set in getEquationGraphLayout, fullscreen
+       only) covers drag/move. The inline preview graph stays fully
+       non-interactive (view + hover only, no zoom/pan) — dragging it
+       isn't useful at that size, and it's better spent as a clean tap
+       target that opens the fullscreen view. */
+    return {displayModeBar:false, responsive:true, scrollZoom:fullscreen, displaylogo:false};
+}
+
+/* ── Multi-graph comparison + exact-point click ─────────────────
+   Up to 2 extra "compare" curves can be overlaid on the same graph
+   as the main equation's f(x)=left−right. Pairwise intersections
+   between every shown curve are found with the same sign-change +
+   bisection scan plotEquation already uses for the main curve's own
+   roots, just applied to the difference of two curves instead of one
+   curve vs zero — genuinely the same root-finding machinery, not new.
+   _eqGraphCurves keeps each curve's real evaluator (not just its
+   0.05-step sampled array) so a later click on the fullscreen graph
+   can report the exact value at the clicked x, not whatever the
+   nearest plotted sample happened to be. ── */
+var _eqCompareCurves = [];
+var _eqLastLeft = null, _eqLastRight = null;
+var _eqGraphCurves = [];
+var _eqCompareColors = ['#f59e0b','#ec4899'];
+var _eqClickHighlightAdded = false;
+
+function buildEqGraphFn(expr) {
+    return function(x){
+        try{
+            var s=expr.replace(/sin/g,'Math.sin').replace(/cos/g,'Math.cos').replace(/tan/g,'Math.tan').replace(/exp/g,'Math.exp').replace(/log10/g,'Math.log10').replace(/log/g,'Math.log10').replace(/ln/g,'Math.log').replace(/π/g,Math.PI).replace(/²/g,'**2').replace(/³/g,'**3').replace(/\^/g,'**').replace(/(\d)(x)/g,'$1*$2').replace(/x/g,'('+x+')');
+            return Function('"use strict"; return '+fixImplicitMult(s))();
+        }catch(e){return NaN;}
+    };
+}
+
+/* Shared 1D bisection: given g(a)=fa and g(b) already known (or
+   implied) to have opposite signs, narrows to g(x)=0 in 40 steps.
+   findCurveIntersections, handleEqGraphClick, and
+   findLocalExtremumNear each used to inline this same loop
+   separately (one of them recomputing fa from scratch every
+   iteration instead of caching it, and with a different iteration
+   count) — unified here into one implementation all three call. */
+function bisect1D(g, a, b, fa) {
+    for (var k=0;k<40;k++){
+        var m=(a+b)/2, fm=g(m);
+        if (!isFinite(fm)) break;
+        if (fa*fm<=0){ b=m; } else { a=m; fa=fm; }
+    }
+    return (a+b)/2;
+}
+
+/* Same technique as the root-scan inside plotEquation below, applied
+   to fnA(x)-fnB(x) instead of a single curve vs zero. */
+function findCurveIntersections(fnA, fnB, minX, maxX, step) {
+    var xs=[], prevX=null, prevDiff=null;
+    for (var x=minX; x<=maxX+1e-9; x+=step) {
+        var rx=Math.round(x*1000)/1000;
+        var dA=fnA(rx), dB=fnB(rx);
+        if (!isFinite(dA)||!isFinite(dB)) { prevX=null; prevDiff=null; continue; }
+        var diff=dA-dB;
+        if (Math.abs(diff)<1e-5) {
+            if (xs.every(function(r){return Math.abs(r-rx)>0.08;})) xs.push(rx);
+        } else if (prevDiff!==null && prevDiff*diff<0) {
+            var xc=bisect1D(function(m){return fnA(m)-fnB(m);}, prevX, rx, prevDiff);
+            var rr=Math.round(xc*1e6)/1e6;
+            if (xs.every(function(e){return Math.abs(e-rr)>0.03;})) xs.push(rr);
+        }
+        prevX=rx; prevDiff=diff;
+    }
+    return xs;
+}
+
+function renderCompareChips() {
+    var box=document.getElementById('eq-compare-chips'); if(!box) return;
+    box.innerHTML=_eqCompareCurves.map(function(expr,i){
+        return '<span class="eq-example" style="display:inline-flex;align-items:center;gap:6px;cursor:default;">'+expr+
+            ' <button type="button" onclick="removeCompareCurve('+i+')" aria-label="remove" '+
+            'style="background:none;border:none;color:#f87171;cursor:pointer;font-weight:700;padding:0;font-size:0.95rem;line-height:1;">×</button></span>';
+    }).join('');
+}
+
+function addCompareCurve() {
+    var inp=document.getElementById('eq-compare-input'); if(!inp) return;
+    var expr=(inp.value||'').trim().replace(/−/g,'-');
+    if (!expr) return;
+    var box=document.getElementById('eq-compare-chips');
+    if (_eqCompareCurves.length>=2) {
+        if (box) box.insertAdjacentHTML('beforeend','<span class="eq-example eq-warn eq-chip-note">'+T('eqCompareMax')+'</span>');
+        return;
+    }
+    var testFn=buildEqGraphFn(expr);
+    if (!isFinite(testFn(1)) && !isFinite(testFn(2)) && !isFinite(testFn(0.5)) && !isFinite(testFn(-1))) {
+        if (box) box.insertAdjacentHTML('beforeend','<span class="eq-example eq-warn eq-chip-note">'+T('eqCompareInvalid')+'</span>');
+        return;
+    }
+    _eqCompareCurves.push(expr);
+    inp.value='';
+    renderCompareChips();
+    if (_eqLastLeft!==null) plotEquation(_eqLastLeft,_eqLastRight);
+}
+function removeCompareCurve(idx) {
+    _eqCompareCurves.splice(idx,1);
+    renderCompareChips();
+    if (_eqLastLeft!==null) plotEquation(_eqLastLeft,_eqLastRight);
+}
+
+function plotEquation(exprLeft, exprRight) {
+    var plotDiv=document.getElementById('eq-plot'); if(!plotDiv) return;
+    _eqLastLeft=exprLeft; _eqLastRight=exprRight;
+    var render=function(){
+        try {
+            var t=_eqTranslations[MultiCalc.state.currentLang]||_eqTranslations['en'];
+            var fn=function(x){try{var s=exprLeft.replace(/sin/g,'Math.sin').replace(/cos/g,'Math.cos').replace(/tan/g,'Math.tan').replace(/exp/g,'Math.exp').replace(/log10/g,'Math.log10').replace(/log/g,'Math.log10').replace(/ln/g,'Math.log').replace(/π/g,Math.PI).replace(/²/g,'**2').replace(/³/g,'**3').replace(/\^/g,'**').replace(/(\d)(x)/g,'$1*$2').replace(/x/g,'('+x+')');return Function('"use strict"; return '+s)()-safeEval(exprRight,x);}catch(e){return NaN;}};
+            var xValues=[],yValues=[],roots=[],minX=-10,maxX=10,step=0.05,prevX=null,prevY=null;
+            for(var x=minX;x<=maxX+1e-9;x+=step){
+                var rx=Math.round(x*1000)/1000,y=fn(rx),cleanY=isFinite(y)&&Math.abs(y)<1e6?y:null;
+                xValues.push(rx); yValues.push(cleanY);
+                if(cleanY!==null){
+                    if(Math.abs(cleanY)<1e-5){if(roots.every(function(r){return Math.abs(r-rx)>0.08;})) roots.push(rx);}
+                    else if(prevY!==null&&prevY*cleanY<0){var a=prevX,b=rx;for(var i=0;i<32;i++){var m=(a+b)/2,fm=fn(m);if(!isFinite(fm))break;if(fn(a)*fm<=0)b=m;else a=m;}var rr=Math.round(((a+b)/2)*1e6)/1e6;if(roots.every(function(e){return Math.abs(e-rr)>0.03;})) roots.push(rr);}
+                    prevX=rx; prevY=cleanY;
+                } else {prevX=null;prevY=null;}
+            }
+            var curveTrace={x:xValues,y:yValues,type:'scatter',mode:'lines',line:{color:'#6366f1',width:5,shape:'spline',smoothing:0.6},fill:'tozeroy',fillcolor:'rgba(99,102,241,0.05)',name:(t.graph_fx||'f(x) = left − right'),hovertemplate:'x=%{x:.3f}<br>f(x)=%{y:.5f}<extra></extra>'};
+            var zeroTrace={x:[minX,maxX],y:[0,0],type:'scatter',mode:'lines',line:{color:'rgba(34,211,238,0.55)',width:2,dash:'dot'},name:(t.graph_zero||'y = 0'),hoverinfo:'skip'};
+            var plotData=[zeroTrace,curveTrace];
+            if(roots.length) plotData.push({x:roots,y:roots.map(function(){return 0;}),type:'scatter',mode:'markers+text',marker:{size:12,color:'#22d3ee',line:{color:'#f8fafc',width:2},symbol:'circle'},text:roots.map(function(r){return 'x='+fmtNum(r);}),textposition:'top center',textfont:{color:'#e0f2fe',size:12},name:(t.eq_roots||'Roots'),hovertemplate:'root x=%{x:.6f}<extra></extra>'});
+
+            _eqGraphCurves=[{fn:fn,name:(t.graph_fx||'f(x)')}];
+            _eqCompareCurves.forEach(function(expr,ci){
+                var cfn=buildEqGraphFn(expr), cx=[], cy=[];
+                for(var xi=minX;xi<=maxX+1e-9;xi+=step){
+                    var rxi=Math.round(xi*1000)/1000, yi=cfn(rxi);
+                    cx.push(rxi); cy.push(isFinite(yi)&&Math.abs(yi)<1e6?yi:null);
+                }
+                var color=_eqCompareColors[ci%_eqCompareColors.length];
+                plotData.push({x:cx,y:cy,type:'scatter',mode:'lines',line:{color:color,width:3,dash:'dash',shape:'spline',smoothing:0.6},name:expr,hovertemplate:'x=%{x:.3f}<br>y=%{y:.5f}<extra></extra>'});
+                _eqGraphCurves.push({fn:cfn,name:expr});
+            });
+            /* Pairwise intersections among every currently-shown curve —
+               same sign-change+bisection scan as the roots loop above,
+               just on the difference of two curves instead of one
+               curve vs zero (see findCurveIntersections above). */
+            var allIntersections=[];
+            for(var ii=0; ii<_eqGraphCurves.length; ii++){
+                for(var jj=ii+1; jj<_eqGraphCurves.length; jj++){
+                    var fnA=_eqGraphCurves[ii].fn, fnB=_eqGraphCurves[jj].fn;
+                    findCurveIntersections(fnA,fnB,minX,maxX,step).forEach(function(px){
+                        if(allIntersections.every(function(e){return Math.abs(e.x-px)>0.05;})) allIntersections.push({x:px,y:fnA(px)});
+                    });
+                }
+            }
+            if(allIntersections.length){
+                plotData.push({x:allIntersections.map(function(p){return p.x;}),y:allIntersections.map(function(p){return p.y;}),type:'scatter',mode:'markers',marker:{size:13,color:'#fbbf24',line:{color:'#1e293b',width:2},symbol:'star'},name:(t.eqIntersections||'Intersections'),hovertemplate:'x=%{x:.4f}, y=%{y:.4f}<extra></extra>'});
+            }
+
+            plotDiv.dataset.graphTitle=exprLeft+' = '+exprRight;
+            /* IMPORTANT: make the container visible BEFORE Plotly measures it.
+               Previously display was set to 'block' AFTER Plotly.newPlot(), so
+               Plotly measured a display:none (zero-size) box and fell back to
+               its default ~700px-wide layout — which then rendered wider than
+               the actual card once the container appeared, spilling past the
+               rounded border. Ordering this correctly removes the mismatch at
+               the source; the resize call below is just a safety net for any
+               remaining layout settling (e.g. right after the screen's own
+               entrance animation). */
+            plotDiv.style.display='block';
+            var cmpBox=document.getElementById('eq-compare-box'); if(cmpBox) cmpBox.style.display='block';
+            window.Plotly.newPlot(plotDiv,plotData,getEquationGraphLayout(320,''),getEquationPlotConfig(false));
+            requestAnimationFrame(function(){
+                requestAnimationFrame(function(){
+                    try{window.Plotly.Plots.resize(plotDiv);}catch(e){}
+                });
+            });
+        } catch(e){plotDiv.style.display='none';}
+    };
+    if (window.Plotly) render();
+    else plotDiv.style.display='none';
+}
+
+function toggleFullScreenPlot() {
+    var modal=document.getElementById('fullscreen-modal'),plotDiv=document.getElementById('eq-plot');
+    if(!modal||!plotDiv||plotDiv.style.display==='none') return;
+    var content=document.getElementById('fullscreen-content'),old=document.getElementById('fullscreen-plot');
+    if(old&&window.Plotly){try{window.Plotly.purge(old);}catch(e){} old.remove();}
+    var oldReadout=document.getElementById('eq-graph-click-readout'); if(oldReadout) oldReadout.remove();
+    var fullPlotDiv=document.createElement('div'); fullPlotDiv.id='fullscreen-plot'; content.appendChild(fullPlotDiv);
+    var readoutDiv=document.createElement('div'); readoutDiv.id='eq-graph-click-readout'; readoutDiv.style.cssText='flex:0 0 auto;margin-top:8px;min-height:24px;'; content.appendChild(readoutDiv);
+    _eqClickHighlightAdded=false;
+    _modalDrag.reset();
+    document.body.classList.add('graph-modal-open');
+    modal.classList.add('active'); modal.setAttribute('aria-hidden','false');
+    requestAnimationFrame(function(){
+        requestAnimationFrame(function(){
+            if(!window.Plotly) return;
+            var data=plotDiv.data||[]; if(!data.length) return;
+            var shell=modal.querySelector('.graph-fullscreen-shell');
+            var header=modal.querySelector('.graph-fullscreen-header'),headerH=header?header.offsetHeight:52;
+            var shellH=shell?shell.clientHeight:600;
+            var availH=Math.max(240,shellH-headerH-24);
+            var layout=getEquationGraphLayout(availH,plotDiv.dataset.graphTitle||'',true);
+            window.Plotly.newPlot(fullPlotDiv,data,layout,getEquationPlotConfig(true));
+            setTimeout(function(){try{window.Plotly.Plots.resize(fullPlotDiv);}catch(e){}},80);
+            /* Tap/click a curve in the fullscreen view to get its exact
+               value at that x (not the 0.05-step sample Plotly nearest-
+               matched) — or, if the tap lands where two curves are
+               close together, the precise intersection between them. */
+            try{ fullPlotDiv.on('plotly_click', function(clickData){ handleEqGraphClick(clickData, fullPlotDiv); }); }catch(e){}
+        });
+    });
+}
+
+/* Scans a small window around clickedX for a local max/min of fn —
+   central-difference derivative, sign-change detection, bisection to
+   pin down f'(x)=0 — same scan-then-bisect shape as
+   findCurveIntersections above, just on fn's derivative instead of
+   two curves' difference. Returns null if the curve is monotonic
+   throughout the window (the common case — most clicks aren't near
+   a turning point). */
+function findLocalExtremumNear(fn, clickedX, halfWindow, step) {
+    var h = (step||0.05)/2;
+    function deriv(x){ return (fn(x+h)-fn(x-h))/(2*h); }
+    var lo=clickedX-halfWindow, hi=clickedX+halfWindow, n=40, dx=(hi-lo)/n;
+    var prevX=null, prevD=null, found=null;
+    for (var i=0;i<=n;i++){
+        var x=lo+i*dx, d=deriv(x);
+        if (!isFinite(d)) { prevX=null; prevD=null; continue; }
+        if (prevD!==null && prevD*d<0) {
+            var xc=bisect1D(deriv, prevX, x, prevD);
+            var yc=fn(xc);
+            if (isFinite(yc)) {
+                var kind = prevD>0 ? 'max' : 'min'; // derivative + -> - is a peak, - -> + is a trough
+                if (!found || Math.abs(xc-clickedX)<Math.abs(found.x-clickedX)) found={x:xc,y:yc,kind:kind};
+            }
+        }
+        prevX=x; prevD=d;
+    }
+    return found;
+}
+
+/* Called on plotly_click in the fullscreen graph. clickData.points
+   gives the nearest SAMPLED point Plotly matched (accurate only to
+   the 0.05-step grid); this re-evaluates the real curve(s) at that x
+   for an exact value, and — if the click landed where two curves are
+   close together — refines to their precise intersection via a local
+   bisection on fnA(x)-fnB(x) (same technique as findCurveIntersections
+   above, narrowed to a small window instead of the whole graph). A
+   click not near an intersection is also checked for a nearby local
+   max/min (findLocalExtremumNear) before falling back to a plain
+   exact point. */
+function handleEqGraphClick(clickData, plotDivEl) {
+    var pts=clickData.points||[]; if(!pts.length || !_eqGraphCurves.length) return;
+    var clickedX=pts[0].x;
+
+    var vals=_eqGraphCurves.map(function(c){ return {name:c.name, y:c.fn(clickedX)}; }).filter(function(v){return isFinite(v.y);});
+    if (!vals.length) return;
+
+    var exactX=clickedX, exactY, label;
+    var best=null;
+    for (var i=0;i<vals.length;i++){
+        for (var j=i+1;j<vals.length;j++){
+            var d=Math.abs(vals[i].y-vals[j].y);
+            if (!best || d<best.d) best={i:i,j:j,d:d};
+        }
+    }
+    var closeTol=0.15;
+    if (best && best.d<closeTol) {
+        var curveA=_eqGraphCurves.filter(function(c){return c.name===vals[best.i].name;})[0];
+        var curveB=_eqGraphCurves.filter(function(c){return c.name===vals[best.j].name;})[0];
+        var fnA=curveA.fn, fnB=curveB.fn;
+        var a=clickedX-0.1, b=clickedX+0.1, fa=fnA(a)-fnB(a), fb=fnA(b)-fnB(b);
+        if (isFinite(fa)&&isFinite(fb)&&fa*fb<0){
+            exactX=bisect1D(function(m){return fnA(m)-fnB(m);}, a, b, fa);
+            exactY=fnA(exactX);
+        } else { exactY=vals[best.i].y; }
+        label=T('eqIntersectionPoint');
+    } else {
+        var clickY=pts[0].y;
+        var nearest=vals.reduce(function(p,c){return (Math.abs(c.y-clickY)<Math.abs(p.y-clickY))?c:p;});
+        var curveObj=_eqGraphCurves.filter(function(c){return c.name===nearest.name;})[0];
+        var ext = curveObj ? findLocalExtremumNear(curveObj.fn, clickedX, 1.0, 0.05) : null;
+        if (ext) {
+            exactX=ext.x; exactY=ext.y;
+            label = ext.kind==='max' ? T('eqLocalMax') : T('eqLocalMin');
+        } else {
+            exactY=nearest.y;
+            label=T('eqExactPoint');
+        }
+    }
+
+    try{
+        if (_eqClickHighlightAdded && plotDivEl.data && plotDivEl.data.length) window.Plotly.deleteTraces(plotDivEl, plotDivEl.data.length-1);
+        window.Plotly.addTraces(plotDivEl, {x:[exactX],y:[exactY],type:'scatter',mode:'markers',marker:{size:16,color:'#34d399',symbol:'x',line:{color:'#f8fafc',width:2}},hoverinfo:'skip',showlegend:false});
+        _eqClickHighlightAdded=true;
+    }catch(e){}
+
+    var readout=document.getElementById('eq-graph-click-readout');
+    if (readout) readout.innerHTML='<div class="eq-block" style="margin:0;">'+label+': '+KX('('+fmtNumTex(exactX)+',\\ '+fmtNumTex(exactY)+')',true)+'</div>';
+}
+
+function closeFullScreen() {
+    var modal=document.getElementById('fullscreen-modal'); if(!modal) return;
+    modal.classList.remove('active'); modal.setAttribute('aria-hidden','true');
+    document.body.classList.remove('graph-modal-open');
+    setTimeout(function(){var fp=document.getElementById('fullscreen-plot');if(fp&&window.Plotly){try{window.Plotly.purge(fp);}catch(e){}}},260);
+}
+
+/* ── Drag modal ── */
+var _modalDrag = (function(){
+    var state={ox:0,oy:0,active:false,sx:0,sy:0,moved:false};
+    function getShell(){return document.querySelector('.graph-fullscreen-shell');}
+    function applyToShell(){
+        var shell=getShell(); if(!shell) return;
+        var isOpen=document.getElementById('fullscreen-modal')&&document.getElementById('fullscreen-modal').classList.contains('active');
+        var scale=isOpen?1:0.92;
+        shell.style.transform='translate(calc(-50% + '+state.ox+'px), calc(-50% + '+state.oy+'px)) scale('+scale+')';
+    }
+    function reset(){state.ox=0;state.oy=0;state.active=false;state.moved=false;applyToShell();}
+    document.addEventListener('DOMContentLoaded',function(){
+        var modal=document.getElementById('fullscreen-modal'); if(!modal) return;
+        modal.addEventListener('pointerdown',function(e){
+            var onBackdrop=!e.target.closest('.graph-fullscreen-shell');
+            var onHeader=!!e.target.closest('.graph-fullscreen-header')&&!e.target.closest('.graph-fullscreen-close');
+            var onShellEdge=!!e.target.closest('.graph-fullscreen-shell')&&!e.target.closest('#fullscreen-plot')&&!e.target.closest('.graph-fullscreen-close');
+            if(!onBackdrop&&!onHeader&&!onShellEdge) return;
+            if(!modal.classList.contains('active')) return;
+            state.active=true; state.moved=false; state.sx=e.clientX-state.ox; state.sy=e.clientY-state.oy;
+            modal.style.cursor='grabbing'; try{modal.setPointerCapture(e.pointerId);}catch(err){} e.preventDefault();
+        },{passive:false});
+        modal.addEventListener('pointermove',function(e){
+            if(!state.active) return;
+            var dx=e.clientX-state.sx,dy=e.clientY-state.sy;
+            if(Math.abs(dx-state.ox)>1||Math.abs(dy-state.oy)>1) state.moved=true;
+            state.ox=dx; state.oy=dy; applyToShell();
+        },{passive:false});
+        function stopDrag(e){if(!state.active)return;state.active=false;modal.style.cursor='';var shell=getShell();if(shell)shell.style.cursor='';if(!state.moved&&!e.target&&!e.target.closest('.graph-fullscreen-shell'))closeFullScreen();}
+        modal.addEventListener('pointerup',stopDrag); modal.addEventListener('pointercancel',stopDrag);
+    });
+    return {reset:reset,applyToShell:applyToShell};
+})();
+
+/* Keyboard support */
+window.addEventListener('keydown',function(e){
+    if(e.key==='Escape') closeFullScreen();
+    if(e.key==='Enter'&&['eq-input','eq-input2','eq-input3'].includes(e.target&&e.target.id)) solveEquationImpl();
+});
+
+/* ── Apply translations to static UI text that setEqExample() never
+   touches (header title, type chips, Solve button, fullscreen-graph
+   button + modal chrome, quick-examples heading). These were plain
+   hardcoded strings in the HTML, so they never respected the active
+   app language — this brings them into the same _eqTranslations/T()
+   system already used for the input labels and step messages. ── */
+/* ── Random exercise generator ───────────────────────────────
+   Fills the input with a freshly generated equation for whichever
+   chip is active, then stops — this module has no live-as-you-type
+   solving (only the Solve button / Enter key trigger it, same as the
+   Quick Example buttons), so generating a problem genuinely sets up
+   practice rather than handing over the answer.
+   Quadratic/cubic/poly are built FROM chosen integer roots and
+   expanded, so they stay factorable; the rest use small random
+   integer coefficients directly — KaTeX + exact fractions already
+   make any resulting answer render cleanly, integer or not, so
+   there's no need to force niceness everywhere. ── */
+function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function randNonZero(min,max){ var v; do{ v=randInt(min,max); }while(v===0); return v; }
+function randDistinct(min,max,avoid){ var v; do{ v=randInt(min,max); }while(v===avoid); return v; }
+
+function fmtPolyTerms(terms) {
+    // terms: [{coef, varStr}], highest degree first; varStr e.g. 'x²','x','' — reused for quadratic/cubic/poly.
+    var parts=[];
+    terms.forEach(function(t){
+        if (t.coef===0) return;
+        var mag=Math.abs(t.coef);
+        var magStr=(mag===1 && t.varStr) ? '' : String(mag);
+        var piece=magStr+t.varStr;
+        parts.push(parts.length ? ((t.coef<0?' - ':' + ')+piece) : ((t.coef<0?'-':'')+piece));
+    });
+    return parts.length?parts.join(''):'0';
+}
+function appendConst(base, konst) {
+    if (konst===0) return base;
+    return base+(konst>0?' + ':' - ')+Math.abs(konst);
+}
+function fmtAffine(coefVar, varLabel, konst) {
+    var vPart = coefVar===0?'':(coefVar===1?varLabel:(coefVar===-1?'-'+varLabel:coefVar+varLabel));
+    return vPart ? appendConst(vPart,konst) : String(konst);
+}
+function fmtLinearSide(coefX, konst){ return fmtAffine(coefX,'x',konst); }
+function fmtTwoVarSide(coefX, coefY, varX, varY){
+    var parts=[];
+    if (coefX!==0) parts.push((coefX===1?'':(coefX===-1?'-':coefX))+varX);
+    if (coefY!==0) {
+        var piece=(Math.abs(coefY)===1?'':String(Math.abs(coefY)))+varY;
+        parts.push(parts.length ? ((coefY<0?' - ':' + ')+piece) : ((coefY<0?'-':'')+piece));
+    }
+    return parts.length?parts.join(''):'0';
+}
+function fmtThreeVarSide(a,b,c,vx,vy,vz){
+    var parts=[];
+    [[a,vx],[b,vy],[c,vz]].forEach(function(pair){
+        var coef=pair[0], v=pair[1];
+        if (coef===0) return;
+        var piece=(Math.abs(coef)===1?'':String(Math.abs(coef)))+v;
+        parts.push(parts.length ? ((coef<0?' - ':' + ')+piece) : ((coef<0?'-':'')+piece));
+    });
+    return parts.length?parts.join(''):'0';
+}
+
+function genLinear(){
+    var x0=randInt(-9,9);
+    var a1=randNonZero(2,9), b1=randInt(-15,15);
+    var a2=randDistinct(-9,9,a1);
+    var d2=(a1-a2)*x0+b1;
+    return fmtLinearSide(a1,b1)+' = '+fmtLinearSide(a2,d2);
+}
+function genQuadratic(){
+    var r1=randInt(-6,6), r2=randInt(-6,6);
+    var A=randInt(1,2);
+    return fmtPolyTerms([{coef:A,varStr:'x²'},{coef:-A*(r1+r2),varStr:'x'},{coef:A*r1*r2,varStr:''}])+' = 0';
+}
+function genCubic(){
+    var r1=randInt(-4,4), r2=randInt(-4,4), r3=randInt(-4,4);
+    var b=-(r1+r2+r3), c=r1*r2+r1*r3+r2*r3, d=-r1*r2*r3;
+    return fmtPolyTerms([{coef:1,varStr:'x³'},{coef:b,varStr:'x²'},{coef:c,varStr:'x'},{coef:d,varStr:''}])+' = 0';
+}
+function genAbsolute(){
+    var a=randNonZero(1,6), b=randInt(-10,10), c=randInt(1,15);
+    return '|'+fmtLinearSide(a,b)+'| = '+c;
+}
+function genRational(){
+    var x0=randInt(-6,6);
+    var c=randNonZero(1,5), d=randDistinct(-10,10,-c*x0);
+    var e=randNonZero(-5,5);
+    var a; do{ a=randNonZero(1,5); }while(a===e*c); // a===e*c makes numerator = e*denominator identically -> infinite solutions, not a proper single-answer exercise
+    var b=e*(c*x0+d)-a*x0;
+    return '('+fmtLinearSide(a,b)+')/('+fmtLinearSide(c,d)+') = '+e;
+}
+function genInequality(){
+    var ops=['>','<','>=','<='];
+    if (Math.random()<0.5) {
+        var eq=genLinear().split(' = ');
+        return eq[0]+' '+ops[randInt(0,3)]+' '+eq[1];
+    }
+    var r1=randInt(-6,6), r2=randDistinct(-6,6,r1);
+    var terms=[{coef:1,varStr:'x²'},{coef:-(r1+r2),varStr:'x'},{coef:r1*r2,varStr:''}];
+    return fmtPolyTerms(terms)+' '+ops[randInt(0,3)]+' 0';
+}
+function genSystem(){
+    var x0=randInt(-6,6), y0=randInt(-6,6);
+    var a1,b1,a2,b2,det;
+    do {
+        a1=randNonZero(-6,6); b1=randNonZero(-6,6);
+        a2=randNonZero(-6,6); b2=randNonZero(-6,6);
+        det=a1*b2-a2*b1;
+    } while (det===0);
+    var c1=a1*x0+b1*y0, c2=a2*x0+b2*y0;
+    return [fmtTwoVarSide(a1,b1,'x','y')+' = '+c1, fmtTwoVarSide(a2,b2,'x','y')+' = '+c2];
+}
+function genSystem3(){
+    function det3(m){
+        return m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1])
+             - m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0])
+             + m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]);
+    }
+    var x0=randInt(-5,5), y0=randInt(-5,5), z0=randInt(-5,5);
+    var rows,det;
+    do {
+        rows=[[randNonZero(-5,5),randNonZero(-5,5),randNonZero(-5,5)],
+              [randNonZero(-5,5),randNonZero(-5,5),randNonZero(-5,5)],
+              [randNonZero(-5,5),randNonZero(-5,5),randNonZero(-5,5)]];
+        det=det3(rows);
+    } while (det===0);
+    var rhs=rows.map(function(r){ return r[0]*x0+r[1]*y0+r[2]*z0; });
+    return rows.map(function(r,i){ return fmtThreeVarSide(r[0],r[1],r[2],'x','y','z')+' = '+rhs[i]; });
+}
+function genTrig(){
+    var fns=['sin','cos','tan'];
+    var fn=fns[randInt(0,2)];
+    var niceVals={sin:[0,0.5,-0.5,1,-1,0.7071,-0.7071,0.866,-0.866],cos:[0,0.5,-0.5,1,-1,0.7071,-0.7071,0.866,-0.866],tan:[0,1,-1]};
+    var vals=niceVals[fn];
+    return fn+'(x) = '+vals[randInt(0,vals.length-1)];
+}
+function genExp(){
+    var bases=[2,3,5,10];
+    var a=bases[randInt(0,3)], x0=randInt(1,4);
+    return a+'^x = '+Math.pow(a,x0);
+}
+function genLog(){
+    var useLn=Math.random()<0.5, v=randInt(0,3);
+    return (useLn?'ln(x)':'log(x)')+' = '+v;
+}
+function genPoly(){
+    if (Math.random()<0.5) {
+        var squares=[1,4,9,16,25];
+        var i1=randInt(0,4), i2=randDistinct(0,4,i1);
+        var p=squares[i1], q=squares[i2];
+        return fmtPolyTerms([{coef:1,varStr:'x^4'},{coef:-(p+q),varStr:'x²'},{coef:p*q,varStr:''}])+' = 0';
+    }
+    var kk=[1,4,9][randInt(0,2)];
+    return 'x^5 - '+kk+'x = 0';
+}
+function genParam(){
+    var pick=randInt(0,2);
+    if (pick===0) {
+        var k=randNonZero(-6,6), m=randInt(-9,9), n=randDistinct(-9,9,m);
+        var lhs=appendConst('('+appendConst('λ',-k)+')x', m);
+        return lhs+' = '+appendConst('λ',n);
+    }
+    if (pick===1) {
+        var k2=randNonZero(-6,6);
+        return '('+appendConst('λ',-k2)+')x = λ² - '+(k2*k2);
+    }
+    var k3=randInt(-6,6);
+    var mid = Math.random()<0.5 ? 'x² + λx' : 'x² - λx';
+    return appendConst(mid,k3)+' = 0';
+}
+
+function generateRandomExercise(){
+    var mode=MultiCalc.state.eqMode;
+    var t=_eqTranslations[MultiCalc.state.currentLang]||_eqTranslations['en'];
+    if (mode==='system') {
+        var pair=genSystem();
+        var i1=document.getElementById('eq-input'), i2=document.getElementById('eq-input2');
+        if(i1) i1.value=pair[0]; if(i2) i2.value=pair[1];
+    } else if (mode==='system3') {
+        var triple=genSystem3();
+        var j1=document.getElementById('eq-input'), j2=document.getElementById('eq-input2'), j3=document.getElementById('eq-input3');
+        if(j1) j1.value=triple[0]; if(j2) j2.value=triple[1]; if(j3) j3.value=triple[2];
+    } else {
+        var generators={linear:genLinear,quadratic:genQuadratic,cubic:genCubic,absolute:genAbsolute,
+            rational:genRational,inequality:genInequality,trig:genTrig,exp:genExp,log:genLog,poly:genPoly,param:genParam};
+        var gen=generators[mode]||genLinear;
+        var inp=document.getElementById('eq-input');
+        if (inp) inp.value=gen();
+    }
+    var result=document.getElementById('eq-result');
+    hideEqResult(result);
+    var plotDiv=document.getElementById('eq-plot'); if(plotDiv) plotDiv.style.display='none';
+    var cmpBox=document.getElementById('eq-compare-box'); if(cmpBox) cmpBox.style.display='none';
+    _eqCompareCurves=[];
+    var hint=document.getElementById('eq-exercise-hint');
+    if (hint) { hint.textContent=t.eqExerciseHint||'🎲 Random exercise generated — press Solve when ready.'; hint.style.display='block'; }
+}
+
+function applyEqStaticTranslations() {
+    var t = _eqTranslations[MultiCalc.state.currentLang] || _eqTranslations['en'];
+    var setText = function(id, val){ var el=document.getElementById(id); if(el && val) el.textContent = val; };
+    setText('eq-solver-title-text', t.eqSolverTitle);
+    setText('eq-solve-btn-text', t.eqSolveBtn);
+    setText('eq-graph-fullscreen-btn-text', t.eqGraphFullscreenBtn);
+    setText('eq-quick-label', t.eqQuickExamples);
+    setText('eq-compare-label-text', t.eqCompareLabel);
+    setText('eq-compare-add-btn', t.eqCompareAdd);
+    setText('eq-random-btn-text', t.eqRandomExercise);
+    var cmpInp=document.getElementById('eq-compare-input'); if(cmpInp && t.eqComparePlaceholder) cmpInp.placeholder=t.eqComparePlaceholder;
+    setText('graph-fullscreen-title', t.eqGraphModalTitle);
+    var subtitle = document.querySelector('.graph-fullscreen-subtitle');
+    if (subtitle && t.eqGraphModalSubtitle) subtitle.textContent = t.eqGraphModalSubtitle;
+    var chipMap = {
+        'chip-linear':t.eqChipLinear, 'chip-quadratic':t.eqChipQuadratic, 'chip-cubic':t.eqChipCubic,
+        'chip-abs':t.eqChipAbsolute, 'chip-rat':t.eqChipRational, 'chip-ineq':t.eqChipInequality,
+        'chip-sys':t.eqChipSystem2, 'chip-sys3':t.eqChipSystem3, 'chip-trig':t.eqChipTrig,
+        'chip-exp':t.eqChipExp, 'chip-log':t.eqChipLog, 'chip-poly':t.eqChipPoly, 'chip-param':t.eqChipParam
+    };
+    Object.keys(chipMap).forEach(function(id){ setText(id, chipMap[id]); });
+}
+
+/* ── Init ── */
+setEqExample('linear');
+applyEqStaticTranslations();
+</script>
+</body>
+</html>

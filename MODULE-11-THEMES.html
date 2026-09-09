@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MODULE 11 — Themes</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;}
+html{background:#0f172a;min-height:100%;}
+body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#1a1f3a 100%);min-height:100dvh;min-height:100vh;color:white;overflow-x:hidden;transition:background 0.4s ease;}
+body::before,body::after{content:'';position:fixed;border-radius:50%;pointer-events:none;z-index:0;}
+body::before{width:420px;height:420px;background:radial-gradient(circle,rgba(99,102,241,0.09) 0%,transparent 70%);top:-80px;left:-80px;}
+body::after{width:360px;height:360px;background:radial-gradient(circle,rgba(168,85,247,0.07) 0%,transparent 70%);bottom:40px;right:-60px;}
+.screen{display:none;padding:20px;padding-bottom:170px;min-height:100dvh;min-height:100vh;position:relative;z-index:1;}
+.screen.active{display:block;animation:screenIn 0.5s cubic-bezier(0.2,0.8,0.2,1) both;}
+@keyframes screenIn{from{opacity:0;transform:scale3d(0.96,0.96,1) translateY(10px);}to{opacity:1;transform:scale3d(1,1,1) translateY(0);}}
+.header{text-align:center;padding:40px 20px 20px;}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.logo-icon{width:48px;height:48px;background:linear-gradient(135deg,#6366f1,#a855f7);border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.8rem;color:#fff;box-shadow:0 8px 24px rgba(99,102,241,0.3);position:relative;overflow:hidden;}
+.logo-icon::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(45deg,transparent 30%,rgba(255,255,255,0.1) 50%,transparent 70%);animation:shimmer 3s infinite;}
+@keyframes shimmer{0%{transform:translate(-100%,-100%);}100%{transform:translate(100%,100%);}}
+.logo-text{font-size:2.5rem;font-weight:700;background:linear-gradient(135deg,#fff,#e2e8f0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.logo span{background:linear-gradient(135deg,#6366f1,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.subtitle{color:#94a3b8;font-size:0.95rem;margin-top:5px;}
+.back-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#94a3b8;font-size:0.95rem;padding:10px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;margin-bottom:20px;transition:all 0.2s cubic-bezier(0.34,1.56,0.64,1);}
+.back-btn:hover{color:#e2e8f0;background:rgba(255,255,255,0.1);transform:translateX(-3px);}
+::-webkit-scrollbar{width:8px;}::-webkit-scrollbar-track{background:rgba(15,23,42,0.3);}::-webkit-scrollbar-thumb{background:rgba(71,85,105,0.5);border-radius:4px;}
+.unit-converter-container{max-width:600px;margin:0 auto;background:rgba(15,23,42,0.4);border:1px solid rgba(71,85,105,0.3);border-radius:25px;padding:30px;}
+.unit-title{font-size:1.5rem;font-weight:600;margin-bottom:25px;}
+/* MODULE 11 */
+#theme-overlay{position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0;transition:opacity 0.25s ease;background:#000;}
+.theme-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;max-width:600px;margin:20px auto;}
+.theme-card{aspect-ratio:16/9;border-radius:15px;cursor:pointer;position:relative;overflow:hidden;transition:all 0.3s ease;border:3px solid transparent;}
+.theme-card:hover{transform:scale(1.05);}
+.theme-card.active{border-color:#fbbf24;box-shadow:0 0 20px rgba(251,191,36,0.5);}
+.theme-group-header{grid-column:1/-1;font-size:0.78rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:2.5px;padding:10px 4px 6px;border-bottom:1px solid rgba(255,255,255,0.08);margin-top:8px;display:flex;align-items:center;gap:8px;}
+.theme-label{position:absolute;bottom:5px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);padding:4px 12px;border-radius:8px;font-size:0.85rem;color:white;white-space:nowrap;}
+#theme-default{background:linear-gradient(135deg,#0f172a,#1e293b,#1a1f3a);}
+#theme-theme2{background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);}
+#theme-theme3{background:linear-gradient(135deg,#0d1117,#161b22,#21262d);}
+#theme-theme4{background:linear-gradient(135deg,#4a0e2e,#7b1d45,#c2185b);}
+#theme-theme5{background:linear-gradient(135deg,#0a1628,#0d2137,#102a4c);}
+#theme-theme6{background:linear-gradient(135deg,#1b0033,#2d0057,#4a0080);}
+#theme-theme7{background:linear-gradient(135deg,#0a1f0a,#0d2e0d,#1a4d1a);}
+#theme-theme8{background:linear-gradient(135deg,#1f0800,#3d1200,#6b2200);}
+#theme-theme9{background:linear-gradient(135deg,#001f1f,#003333,#00504f);}
+#theme-theme10{background:linear-gradient(135deg,#1a0000,#330000,#500000);}
+#theme-theme11{background:linear-gradient(135deg,#000814,#001d3d,#003566);}
+#theme-theme12{background:linear-gradient(135deg,#0f0f1a,#1a1a2e,#252542);}
+#theme-theme13{background:linear-gradient(135deg,#0d0022,#1a0040,#3d0080);}
+#theme-theme14{background:linear-gradient(135deg,#080808,#1a0f00,#3d2200);}
+#theme-theme15{background:linear-gradient(135deg,#050505,#0d0d0d,#1a1a1a);}
+#theme-theme16{background:linear-gradient(135deg,#1a0000,#4d0f00,#8b2500);}
+#theme-theme17{background:linear-gradient(135deg,#0a0a14,#141420,#1f1f30);}
+#theme-theme18{background:linear-gradient(135deg,#001a2e,#003d5c,#006b8f);}
+#theme-theme19{background:linear-gradient(135deg,#1a0022,#2d0040,#1a001a);}
+#theme-theme20{background:linear-gradient(135deg,#000d1a,#001a40,#002b6b);}
+#theme-theme21{background:linear-gradient(135deg,#000f00,#011a01,#023302);}
+#theme-theme22{background:linear-gradient(135deg,#001428,#002244,#003366);}
+#theme-theme23{background:linear-gradient(135deg,#1f0800,#3d1500,#6b2a00);}
+#theme-theme24{background:linear-gradient(135deg,#00001f,#000033,#000066);}
+#theme-theme25{background:linear-gradient(135deg,#000d2e,#001a5c,#00268f);}
+#theme-theme26{background:linear-gradient(135deg,#000000,#050508,#0a0a10);}
+#theme-theme27{background:linear-gradient(135deg,#001a0d,#003319,#004d26);}
+#theme-theme28{background:linear-gradient(135deg,#0d1f2e,#1a3040,#263d54);}
+#theme-theme29{background:linear-gradient(135deg,#080808,#111111,#1c1c1c);}
+#theme-theme30{background:linear-gradient(135deg,#1f001f,#3d0040,#660066);}
+#theme-theme31{background:linear-gradient(135deg,#001f2e,#003344,#004d5c);}
+#theme-theme32{background:linear-gradient(135deg,#0d001f,#001a1a,#001a2e);}
+#theme-theme33{background:linear-gradient(135deg,#00001f,#00003d,#00006b);}
+#theme-theme34{background:linear-gradient(135deg,#0a0f14,#141f2e,#1e2d40);}
+#theme-theme35{background:linear-gradient(135deg,#071a00,#0f2e00,#1a4d00);}
+#theme-theme36{background:linear-gradient(135deg,#0d1520,#16253a,#1f3352);}
+#theme-theme37{background:linear-gradient(135deg,#1f1000,#3d2200,#6b3d00);}
+#theme-theme38{background:linear-gradient(135deg,#080f1a,#0f1f33,#162e4d);}
+#theme-theme39{background:linear-gradient(135deg,#001a0a,#003314,#004d1e);}
+#theme-theme40{background:linear-gradient(135deg,#1a0d00,#331a00,#4d2600);}
+#theme-theme41{background:linear-gradient(135deg,#001a33,#001940,#1a0d00);}
+#theme-theme42{background:linear-gradient(135deg,#000d1f,#001933,#002040);}
+#theme-theme43{background:linear-gradient(135deg,#1a0000,#330000,#4d0000);}
+#theme-theme44{background:linear-gradient(135deg,#0d0800,#1a1100,#2e1f00);}
+#theme-theme45{background:linear-gradient(135deg,#1f0800,#4d1500,#732600);}
+#theme-theme46{background:linear-gradient(135deg,#00001f,#00003d,#001a33);}
+#theme-theme47{background:linear-gradient(135deg,#001a0d,#002e19,#004d2a);}
+#theme-theme48{background:linear-gradient(135deg,#000d1a,#001429,#001a1a);}
+#theme-theme49{background:linear-gradient(135deg,#1f0000,#3d0900,#660f00);}
+#theme-theme50{background:linear-gradient(135deg,#1a0033,#2d0066,#400080);}
+#theme-theme51{background:linear-gradient(135deg,#0d0022,#1a0033,#260040);}
+#theme-theme52{background:linear-gradient(135deg,#0d0d00,#1f1f00,#333300);}
+#theme-theme53{background:linear-gradient(135deg,#000814,#000d26,#001540);}
+#theme-theme54{background:linear-gradient(135deg,#3d0022,#6b1a40,#a0245c);}
+#theme-theme55{background:linear-gradient(135deg,#1a0a2e,#2d1a4d,#3d2266);}
+#theme-theme56{background:linear-gradient(135deg,#1f1028,#2e1840,#3d2255);}
+#theme-theme57{background:linear-gradient(135deg,#1f1a28,#2e2840,#3d3552);}
+#theme-theme58{background:linear-gradient(135deg,#1a1028,#2a1a3d,#3a2452);}
+#theme-theme59{background:linear-gradient(135deg,#1f0a1f,#33103a,#4d1a55);}
+#theme-theme60{background:linear-gradient(135deg,#1f1028,#301840,#402255);}
+#theme-theme61{background:linear-gradient(135deg,#2e0a1a,#4d1a33,#6b2247);}
+#theme-theme62{background:linear-gradient(135deg,#330011,#66002b,#99003d);}
+#theme-theme63{background:linear-gradient(135deg,#1f0a28,#33113d,#4d1a55);}
+#theme-theme64{background:linear-gradient(135deg,#330022,#660044,#990055);}
+#theme-theme65{background:linear-gradient(135deg,#1a1428,#2d2244,#3d3055);}
+#theme-theme66{background:linear-gradient(135deg,#1f1800,#3d3200,#5c4a00);}
+#theme-theme67{background:linear-gradient(135deg,#2e0a22,#4d1a3d,#662252);}
+#theme-theme68{background:linear-gradient(135deg,#1f0d00,#3d1f00,#5c3300);}
+#theme-theme69{background:linear-gradient(135deg,#1f1428,#33223d,#4d3352);}
+#theme-theme70{background:linear-gradient(135deg,#2e0011,#550022,#7a0033);}
+#theme-theme71{background:linear-gradient(135deg,#1a1428,#2e2440,#3d3352);}
+#theme-theme72{background:linear-gradient(135deg,#2e0a1a,#55142e,#7a1f44);}
+#theme-theme73{background:linear-gradient(135deg,#0d1a28,#162840,#1f3855);}
+#theme-theme74{background:linear-gradient(135deg,#2e0a1a,#4d1a33,#662247);}
+#theme-theme75{background:linear-gradient(135deg,#1f1028,#331840,#4a2252);}
+#theme-theme76{background:linear-gradient(135deg,#2e1100,#4d2200,#663300);}
+#theme-theme77{background:linear-gradient(135deg,#3e1736,#702963,#a2749a);}
+#theme-theme78{background:linear-gradient(135deg,#004646,#008080,#59acac);}
+#theme-theme79{background:linear-gradient(135deg,#290202,#4a0404,#895c5c);}
+#theme-theme80{background:linear-gradient(135deg,#7b618c,#e0b0ff,#ebccff);}
+#theme-theme81{background:linear-gradient(135deg,#380121,#66023c,#9c5b80);}
+#theme-theme82{background:linear-gradient(135deg,#153556,#26619c,#7298bf);}
+#theme-theme83{background:linear-gradient(135deg,#2b321b,#4e5b31,#8c9479);}
+#theme-theme84{background:linear-gradient(135deg,#005c3b,#00a86b,#59c69f);}
+#theme-theme85{background:linear-gradient(135deg,#434983,#7984ee,#a8aff4);}
+#theme-theme86{background:linear-gradient(135deg,#75601e,#d4af37,#e3cb7d);}
+#theme-theme87{background:linear-gradient(135deg,#773520,#d9603b,#e69880);}
+#theme-theme88{background:linear-gradient(135deg,#505972,#92a1cf,#b8c2e0);}
+#theme-theme89{background:linear-gradient(135deg,#5a807b,#a4e8e0,#c4f0eb);}
+#theme-theme90{background:linear-gradient(135deg,#770f8a,#d81bfa,#e66bfc);}
+#theme-theme91{background:linear-gradient(135deg,#020816,#040e28,#5c6273);}
+#theme-theme92{background:linear-gradient(135deg,#8a2402,#fb4103,#fc845b);}
+#theme-theme93{background:linear-gradient(135deg,#1a0127,#2f0147,#785a87);}
+#theme-theme94{background:linear-gradient(135deg,#728c7e,#cfffe5,#e0ffee);}
+#theme-theme95{background:linear-gradient(135deg,#022412,#034121,#5b846f);}
+#theme-theme96{background:linear-gradient(135deg,#2b7a03,#4edd05,#8ce95c);}
+#theme-theme97{background:linear-gradient(135deg,#64448b,#b57bfc,#cfa9fd);}
+#theme-theme98{background:linear-gradient(135deg,#594302,#a17a03,#c2a95b);}
+#theme-theme99{background:linear-gradient(135deg,#7c0326,#e10645,#ec5d86);}
+#theme-theme100{background:linear-gradient(135deg,#1f6c7b,#39c4e0,#7ed9eb);}
+#theme-theme101{background:linear-gradient(135deg,#84888c,#f0f8ff,#f5faff);}
+#theme-theme102{background:linear-gradient(135deg,#608383,#afeeee,#cbf4f4);}
+#theme-theme103{background:linear-gradient(135deg,#617b7f,#b0e0e6,#ccebef);}
+#theme-theme104{background:linear-gradient(135deg,#0e0e3e,#191970,#6a6aa2);}
+#theme-theme105{background:linear-gradient(135deg,#040918,#08102b,#5e6475);}
+#theme-theme106{background:linear-gradient(135deg,#414b54,#778899,#a7b2bd);}
+#theme-theme107{background:linear-gradient(135deg,#007173,#00ced1,#59dfe1);}
+#theme-theme108{background:linear-gradient(135deg,#495562,#849bb3,#afbece);}
+#theme-theme109{background:linear-gradient(135deg,#7c8285,#e1edf1,#ecf3f6);}
+#theme-theme110{background:linear-gradient(135deg,#516067,#93afbb,#b9cbd3);}
+#theme-theme111{background:linear-gradient(135deg,#5a337d,#a45de4,#c496ed);}
+#theme-theme112{background:linear-gradient(135deg,#190f3f,#2e1c72,#776ba3);}
+#theme-theme113{background:linear-gradient(135deg,#264863,#4682b4,#87aece);}
+#theme-theme114{background:linear-gradient(135deg,#768188,#d6eaf8,#e4f1fa);}
+#theme-theme115{background:linear-gradient(135deg,#7b888a,#e0f7fa,#ebfafc);}
+@media(max-width:600px){.theme-grid{grid-template-columns:repeat(2,1fr);gap:10px;}}
+@media(max-width:480px){.screen{padding:15px;padding-bottom:140px;}}
+
+/* ── Light-theme contrast overrides (auto-added) ── */
+body.theme-light .back-btn{background:#1e293b;border-color:#334155;color:#f1f5f9;}
+body.theme-light .back-btn:hover{background:#334155;border-color:#475569;color:#ffffff;}
+body.theme-light .subtitle{color:#475569;}
+body.theme-light .logo-text{background:linear-gradient(135deg,#1e293b,#334155);-webkit-background-clip:text;background-clip:text;}
+body.theme-light .unit-converter-container{background:rgba(15,23,42,0.88);}
+</style>
+</head>
+<body>
+<div id="theme-overlay"></div>
+<div id="scr-themes" class="screen active">
+    <div class="header">
+        <div class="logo"><div class="logo-icon">∑</div><div class="logo-text">Multi<span>Calc</span></div></div>
+        <div class="subtitle t-header-sub">Math • Physics • Units • Currency</div>
+    </div>
+    <button class="back-btn" type="button">← <span class="t-back">Πίσω</span></button>
+    <div class="unit-converter-container">
+        <div class="unit-title">Background Themes</div>
+        <div class="theme-grid">
+            <div class="theme-group-header">🌌 Cosmic</div>
+            <div class="theme-card active" onclick="setTheme('default')" id="theme-default"><span class="theme-label">DEFAULT</span></div>
+            <div class="theme-card" onclick="setTheme('theme2')" id="theme-theme2"><span class="theme-label">SPACE</span></div>
+            <div class="theme-card" onclick="setTheme('theme6')" id="theme-theme6"><span class="theme-label">GALAXY</span></div>
+            <div class="theme-card" onclick="setTheme('theme13')" id="theme-theme13"><span class="theme-label">NEBULA</span></div>
+            <div class="theme-card" onclick="setTheme('theme20')" id="theme-theme20"><span class="theme-label">NOVA</span></div>
+            <div class="theme-card" onclick="setTheme('theme44')" id="theme-theme44"><span class="theme-label">COSMIC DUST</span></div>
+            <div class="theme-card" onclick="setTheme('theme46')" id="theme-theme46"><span class="theme-label">LIQUID NIGHT</span></div>
+            <div class="theme-card" onclick="setTheme('theme48')" id="theme-theme48"><span class="theme-label">POLAR NIGHT</span></div>
+            <div class="theme-card" onclick="setTheme('theme53')" id="theme-theme53"><span class="theme-label">BLUE ABYSS</span></div>
+            <div class="theme-card" onclick="setTheme('theme36')" id="theme-theme36"><span class="theme-label">MOONLIGHT</span></div>
+            <div class="theme-card" onclick="setTheme('theme51')" id="theme-theme51"><span class="theme-label">ETHEREAL</span></div>
+            <div class="theme-card" onclick="setTheme('theme56')" id="theme-theme56"><span class="theme-label">MOONKISS</span></div>
+            <div class="theme-group-header">🌑 Dark</div>
+            <div class="theme-card" onclick="setTheme('theme3')" id="theme-theme3"><span class="theme-label">DARK</span></div>
+            <div class="theme-card" onclick="setTheme('theme15')" id="theme-theme15"><span class="theme-label">OBSIDIAN</span></div>
+            <div class="theme-card" onclick="setTheme('theme14')" id="theme-theme14"><span class="theme-label">ECLIPSE</span></div>
+            <div class="theme-card" onclick="setTheme('theme17')" id="theme-theme17"><span class="theme-label">PHANTOM</span></div>
+            <div class="theme-card" onclick="setTheme('theme12')" id="theme-theme12"><span class="theme-label">SLATE</span></div>
+            <div class="theme-card" onclick="setTheme('theme29')" id="theme-theme29"><span class="theme-label">SHADOW</span></div>
+            <div class="theme-card" onclick="setTheme('theme26')" id="theme-theme26"><span class="theme-label">VOID</span></div>
+            <div class="theme-card" onclick="setTheme('theme11')" id="theme-theme11"><span class="theme-label">MIDNIGHT</span></div>
+            <div class="theme-group-header">🔥 Fire &amp; Heat</div>
+            <div class="theme-card" onclick="setTheme('theme16')" id="theme-theme16"><span class="theme-label">INFERNO</span></div>
+            <div class="theme-card" onclick="setTheme('theme23')" id="theme-theme23"><span class="theme-label">EMBER</span></div>
+            <div class="theme-card" onclick="setTheme('theme8')" id="theme-theme8"><span class="theme-label">SUNSET</span></div>
+            <div class="theme-card" onclick="setTheme('theme45')" id="theme-theme45"><span class="theme-label">DRAGONFIRE</span></div>
+            <div class="theme-card" onclick="setTheme('theme49')" id="theme-theme49"><span class="theme-label">LAVA CORE</span></div>
+            <div class="theme-card" onclick="setTheme('theme37')" id="theme-theme37"><span class="theme-label">SOLAR FLARE</span></div>
+            <div class="theme-card" onclick="setTheme('theme10')" id="theme-theme10"><span class="theme-label">CRIMSON</span></div>
+            <div class="theme-card" onclick="setTheme('theme43')" id="theme-theme43"><span class="theme-label">BLOODMOON</span></div>
+            <div class="theme-card" onclick="setTheme('theme40')" id="theme-theme40"><span class="theme-label">TITAN</span></div>
+            <div class="theme-card" onclick="setTheme('theme66')" id="theme-theme66"><span class="theme-label">VANILLA SKY</span></div>
+            <div class="theme-card" onclick="setTheme('theme68')" id="theme-theme68"><span class="theme-label">SOFT SUNRISE</span></div>
+            <div class="theme-card" onclick="setTheme('theme76')" id="theme-theme76"><span class="theme-label">SWEET AURA</span></div>
+            <div class="theme-group-header">💙 Ocean &amp; Ice</div>
+            <div class="theme-card" onclick="setTheme('theme5')" id="theme-theme5"><span class="theme-label">OCEAN</span></div>
+            <div class="theme-card" onclick="setTheme('theme42')" id="theme-theme42"><span class="theme-label">DEEP SEA</span></div>
+            <div class="theme-card" onclick="setTheme('theme25')" id="theme-theme25"><span class="theme-label">SAPPHIRE</span></div>
+            <div class="theme-card" onclick="setTheme('theme18')" id="theme-theme18"><span class="theme-label">MIRAGE</span></div>
+            <div class="theme-card" onclick="setTheme('theme22')" id="theme-theme22"><span class="theme-label">FROSTBITE</span></div>
+            <div class="theme-card" onclick="setTheme('theme28')" id="theme-theme28"><span class="theme-label">ARCTIC</span></div>
+            <div class="theme-card" onclick="setTheme('theme41')" id="theme-theme41"><span class="theme-label">ICEFIRE</span></div>
+            <div class="theme-card" onclick="setTheme('theme73')" id="theme-theme73"><span class="theme-label">ICE PRINCESS</span></div>
+            <div class="theme-group-header">⚡ Electric &amp; Cyber</div>
+            <div class="theme-card" onclick="setTheme('theme27')" id="theme-theme27"><span class="theme-label">NEONPULSE</span></div>
+            <div class="theme-card" onclick="setTheme('theme31')" id="theme-theme31"><span class="theme-label">CYBERWAVE</span></div>
+            <div class="theme-card" onclick="setTheme('theme33')" id="theme-theme33"><span class="theme-label">ELECTRIC</span></div>
+            <div class="theme-card" onclick="setTheme('theme30')" id="theme-theme30"><span class="theme-label">PLASMA</span></div>
+            <div class="theme-card" onclick="setTheme('theme52')" id="theme-theme52"><span class="theme-label">THUNDERSTRIKE</span></div>
+            <div class="theme-card" onclick="setTheme('theme34')" id="theme-theme34"><span class="theme-label">STORM</span></div>
+            <div class="theme-card" onclick="setTheme('theme38')" id="theme-theme38"><span class="theme-label">HYPERION</span></div>
+            <div class="theme-card" onclick="setTheme('theme24')" id="theme-theme24"><span class="theme-label">VORTEX</span></div>
+            <div class="theme-group-header">🌿 Nature</div>
+            <div class="theme-card" onclick="setTheme('theme7')" id="theme-theme7"><span class="theme-label">FOREST</span></div>
+            <div class="theme-card" onclick="setTheme('theme9')" id="theme-theme9"><span class="theme-label">AURORA</span></div>
+            <div class="theme-card" onclick="setTheme('theme47')" id="theme-theme47"><span class="theme-label">EMERALD GLOW</span></div>
+            <div class="theme-card" onclick="setTheme('theme39')" id="theme-theme39"><span class="theme-label">QUANTUM</span></div>
+            <div class="theme-card" onclick="setTheme('theme35')" id="theme-theme35"><span class="theme-label">TOXIC LIME</span></div>
+            <div class="theme-card" onclick="setTheme('theme21')" id="theme-theme21"><span class="theme-label">VENOM</span></div>
+            <div class="theme-group-header">💜 Mystic &amp; Velvet</div>
+            <div class="theme-card" onclick="setTheme('theme19')" id="theme-theme19"><span class="theme-label">VELVET</span></div>
+            <div class="theme-card" onclick="setTheme('theme32')" id="theme-theme32"><span class="theme-label">MYSTIC</span></div>
+            <div class="theme-card" onclick="setTheme('theme50')" id="theme-theme50"><span class="theme-label">DREAMWAVE</span></div>
+            <div class="theme-card" onclick="setTheme('theme55')" id="theme-theme55"><span class="theme-label">LILAC DREAM</span></div>
+            <div class="theme-card" onclick="setTheme('theme58')" id="theme-theme58"><span class="theme-label">LAVENDER MIST</span></div>
+            <div class="theme-group-header">🌸 Soft &amp; Pink</div>
+            <div class="theme-card" onclick="setTheme('theme4')" id="theme-theme4"><span class="theme-label">ROSE</span></div>
+            <div class="theme-card" onclick="setTheme('theme54')" id="theme-theme54"><span class="theme-label">VELVET ROSE</span></div>
+            <div class="theme-card" onclick="setTheme('theme57')" id="theme-theme57"><span class="theme-label">PEARL GLOW</span></div>
+            <div class="theme-card" onclick="setTheme('theme59')" id="theme-theme59"><span class="theme-label">CRYSTAL PINK</span></div>
+            <div class="theme-card" onclick="setTheme('theme60')" id="theme-theme60"><span class="theme-label">STARLILY</span></div>
+            <div class="theme-card" onclick="setTheme('theme61')" id="theme-theme61"><span class="theme-label">SAKURA</span></div>
+            <div class="theme-card" onclick="setTheme('theme62')" id="theme-theme62"><span class="theme-label">CHERRY BLOSSOM</span></div>
+            <div class="theme-card" onclick="setTheme('theme63')" id="theme-theme63"><span class="theme-label">SWEET HEAVEN</span></div>
+            <div class="theme-card" onclick="setTheme('theme64')" id="theme-theme64"><span class="theme-label">PINK PARADISE</span></div>
+            <div class="theme-card" onclick="setTheme('theme65')" id="theme-theme65"><span class="theme-label">DIAMOND KISS</span></div>
+            <div class="theme-card" onclick="setTheme('theme67')" id="theme-theme67"><span class="theme-label">FAIRY PINK</span></div>
+            <div class="theme-card" onclick="setTheme('theme69')" id="theme-theme69"><span class="theme-label">MARSHMALLOW</span></div>
+            <div class="theme-card" onclick="setTheme('theme70')" id="theme-theme70"><span class="theme-label">ROSE CANDY</span></div>
+            <div class="theme-card" onclick="setTheme('theme71')" id="theme-theme71"><span class="theme-label">BUBBLE PEARL</span></div>
+            <div class="theme-card" onclick="setTheme('theme72')" id="theme-theme72"><span class="theme-label">CUPID GLOW</span></div>
+            <div class="theme-card" onclick="setTheme('theme74')" id="theme-theme74"><span class="theme-label">MILKY ROSE</span></div>
+            <div class="theme-card" onclick="setTheme('theme75')" id="theme-theme75"><span class="theme-label">COTTON BLOOM</span></div>
+            <div class="theme-group-header">👑 Royal &amp; Vintage</div>
+            <div class="theme-card" onclick="setTheme('theme77')" id="theme-theme77"><span class="theme-label">BYZANTIUM</span></div>
+            <div class="theme-card" onclick="setTheme('theme78')" id="theme-theme78"><span class="theme-label">TEAL</span></div>
+            <div class="theme-card" onclick="setTheme('theme79')" id="theme-theme79"><span class="theme-label">OXBLOOD</span></div>
+            <div class="theme-card" onclick="setTheme('theme80')" id="theme-theme80"><span class="theme-label">MAUVE</span></div>
+            <div class="theme-group-header">🏛️ Ancient &amp; Imperial</div>
+            <div class="theme-card" onclick="setTheme('theme81')" id="theme-theme81"><span class="theme-label">TYRIAN PURPLE</span></div>
+            <div class="theme-card" onclick="setTheme('theme82')" id="theme-theme82"><span class="theme-label">LAPIS LAZULI</span></div>
+            <div class="theme-card" onclick="setTheme('theme83')" id="theme-theme83"><span class="theme-label">AGED BRONZE</span></div>
+            <div class="theme-group-header">✨ Magical &amp; Arcane</div>
+            <div class="theme-card" onclick="setTheme('theme84')" id="theme-theme84"><span class="theme-label">MYSTIC JADE</span></div>
+            <div class="theme-card" onclick="setTheme('theme85')" id="theme-theme85"><span class="theme-label">AETHER</span></div>
+            <div class="theme-group-header">👑 Mythical Elegance</div>
+            <div class="theme-card" onclick="setTheme('theme86')" id="theme-theme86"><span class="theme-label">OLYMPIAN GOLD</span></div>
+            <div class="theme-card" onclick="setTheme('theme87')" id="theme-theme87"><span class="theme-label">AMBROSIA</span></div>
+            <div class="theme-card" onclick="setTheme('theme88')" id="theme-theme88"><span class="theme-label">CHALCEDONY</span></div>
+            <div class="theme-group-header">🐉 Fantasy World</div>
+            <div class="theme-card" onclick="setTheme('theme89')" id="theme-theme89"><span class="theme-label">STARFLOW GLIMMER</span></div>
+            <div class="theme-card" onclick="setTheme('theme90')" id="theme-theme90"><span class="theme-label">ARCANE SURGE</span></div>
+            <div class="theme-card" onclick="setTheme('theme91')" id="theme-theme91"><span class="theme-label">EVENT HORIZON BLUR</span></div>
+            <div class="theme-card" onclick="setTheme('theme92')" id="theme-theme92"><span class="theme-label">NOVA'S HEART EMBER</span></div>
+            <div class="theme-card" onclick="setTheme('theme93')" id="theme-theme93"><span class="theme-label">VOIDSHADE VIOLET</span></div>
+            <div class="theme-card" onclick="setTheme('theme94')" id="theme-theme94"><span class="theme-label">CELESTIAL ETHER</span></div>
+            <div class="theme-card" onclick="setTheme('theme95')" id="theme-theme95"><span class="theme-label">DRAGONSCALE EMERALD</span></div>
+            <div class="theme-card" onclick="setTheme('theme96')" id="theme-theme96"><span class="theme-label">ELDRITCH FIRE</span></div>
+            <div class="theme-card" onclick="setTheme('theme97')" id="theme-theme97"><span class="theme-label">NEBULA MIST</span></div>
+            <div class="theme-card" onclick="setTheme('theme98')" id="theme-theme98"><span class="theme-label">ABYSSAL GOLD</span></div>
+            <div class="theme-card" onclick="setTheme('theme99')" id="theme-theme99"><span class="theme-label">PHOENIX WING CRIMSON</span></div>
+            <div class="theme-card" onclick="setTheme('theme100')" id="theme-theme100"><span class="theme-label">MANA STREAM</span></div>
+            <div class="theme-group-header">❄️ Cold</div>
+            <div class="theme-card" onclick="setTheme('theme101')" id="theme-theme101"><span class="theme-label">FROSTED WHITE</span></div>
+            <div class="theme-card" onclick="setTheme('theme102')" id="theme-theme102"><span class="theme-label">ICE FLOE</span></div>
+            <div class="theme-card" onclick="setTheme('theme103')" id="theme-theme103"><span class="theme-label">POLAR BLUE</span></div>
+            <div class="theme-card" onclick="setTheme('theme104')" id="theme-theme104"><span class="theme-label">DEEP SEA BLUE</span></div>
+            <div class="theme-card" onclick="setTheme('theme105')" id="theme-theme105"><span class="theme-label">NAVY ABYSS</span></div>
+            <div class="theme-card" onclick="setTheme('theme106')" id="theme-theme106"><span class="theme-label">OCEAN MIST</span></div>
+            <div class="theme-card" onclick="setTheme('theme107')" id="theme-theme107"><span class="theme-label">AQUAFLOW</span></div>
+            <div class="theme-card" onclick="setTheme('theme108')" id="theme-theme108"><span class="theme-label">WINTER SLATE</span></div>
+            <div class="theme-card" onclick="setTheme('theme109')" id="theme-theme109"><span class="theme-label">SNOWSHADOW</span></div>
+            <div class="theme-card" onclick="setTheme('theme110')" id="theme-theme110"><span class="theme-label">PERMAFROST</span></div>
+            <div class="theme-card" onclick="setTheme('theme111')" id="theme-theme111"><span class="theme-label">FROSTBITTEN VIOLET</span></div>
+            <div class="theme-card" onclick="setTheme('theme112')" id="theme-theme112"><span class="theme-label">ARCTIC NIGHT</span></div>
+            <div class="theme-card" onclick="setTheme('theme113')" id="theme-theme113"><span class="theme-label">STARGAZER BLUE</span></div>
+            <div class="theme-card" onclick="setTheme('theme114')" id="theme-theme114"><span class="theme-label">CELESTIAL CHILL</span></div>
+            <div class="theme-card" onclick="setTheme('theme115')" id="theme-theme115"><span class="theme-label">GLACIER ICE</span></div>
+        </div>
+    </div>
+</div>
+<script>
+/* ── Light-theme contrast guard ─────────────────────────────
+   Detects whether the currently active body background is a
+   light color (any theme, present or future) and toggles
+   body.theme-light so panels/text/back-btn switch to a closed,
+   readable palette. getComputedStyle always normalizes colors
+   to rgb()/rgba() — never hex — so we parse that, not hex.
+   Fully-transparent stops (alpha 0, e.g. body's own unset
+   background-color) are skipped so they don't drag the
+   average down as if they were a real black stop.
+   A MutationObserver on body's style attribute acts as the
+   "signal": whenever ANYTHING changes the body background
+   (theme picker, app boot, future code), every already-loaded
+   module reacts instantly, with no fixed timing assumptions. */
+function mcRelLuminanceRGB(r,g,b){
+    const lin=c=>{c/=255;return c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4);};
+    return 0.2126*lin(r)+0.7152*lin(g)+0.0722*lin(b);
+}
+function mcExtractRGB(str){
+    const out=[];
+    (str.match(/rgba?\([^)]+\)/g)||[]).forEach(m=>{
+        const n=m.match(/[\d.]+/g).map(Number);
+        if(n.length>=4 && n[3]===0) return;
+        out.push([n[0],n[1],n[2]]);
+    });
+    (str.match(/#[0-9a-fA-F]{6}/g)||[]).forEach(h=>{
+        out.push([parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]);
+    });
+    return out;
+}
+function mcCheckThemeLightness(){
+    const cs=getComputedStyle(document.body);
+    const str=(cs.backgroundImage&&cs.backgroundImage!=='none'?cs.backgroundImage:'')+' '+cs.backgroundColor;
+    const colors=mcExtractRGB(str);
+    if(!colors.length){document.body.classList.remove('theme-light');return;}
+    const avg=colors.reduce((s,[r,g,b])=>s+mcRelLuminanceRGB(r,g,b),0)/colors.length;
+    document.body.classList.toggle('theme-light',avg>0.18);
+}
+mcCheckThemeLightness();
+window.addEventListener('load',mcCheckThemeLightness);
+setTimeout(mcCheckThemeLightness,300);
+try{
+    new MutationObserver(mcCheckThemeLightness)
+        .observe(document.body,{attributes:true,attributeFilter:['style','class']});
+}catch(e){}
+
+const themes={
+    default:{bg:'linear-gradient(135deg,#0f172a,#1e293b,#1a1f3a)'},
+    theme2:{bg:'linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)'},theme3:{bg:'linear-gradient(135deg,#0d1117,#161b22,#21262d)'},theme4:{bg:'linear-gradient(135deg,#4a0e2e,#7b1d45,#c2185b)'},theme5:{bg:'linear-gradient(135deg,#0a1628,#0d2137,#102a4c)'},theme6:{bg:'linear-gradient(135deg,#1b0033,#2d0057,#4a0080)'},theme7:{bg:'linear-gradient(135deg,#0a1f0a,#0d2e0d,#1a4d1a)'},theme8:{bg:'linear-gradient(135deg,#1f0800,#3d1200,#6b2200)'},theme9:{bg:'linear-gradient(135deg,#001f1f,#003333,#00504f)'},theme10:{bg:'linear-gradient(135deg,#1a0000,#330000,#500000)'},theme11:{bg:'linear-gradient(135deg,#000814,#001d3d,#003566)'},theme12:{bg:'linear-gradient(135deg,#0f0f1a,#1a1a2e,#252542)'},theme13:{bg:'linear-gradient(135deg,#0d0022,#1a0040,#3d0080)'},theme14:{bg:'linear-gradient(135deg,#080808,#1a0f00,#3d2200)'},theme15:{bg:'linear-gradient(135deg,#050505,#0d0d0d,#1a1a1a)'},theme16:{bg:'linear-gradient(135deg,#1a0000,#4d0f00,#8b2500)'},theme17:{bg:'linear-gradient(135deg,#0a0a14,#141420,#1f1f30)'},theme18:{bg:'linear-gradient(135deg,#001a2e,#003d5c,#006b8f)'},theme19:{bg:'linear-gradient(135deg,#1a0022,#2d0040,#1a001a)'},theme20:{bg:'linear-gradient(135deg,#000d1a,#001a40,#002b6b)'},theme21:{bg:'linear-gradient(135deg,#000f00,#011a01,#023302)'},theme22:{bg:'linear-gradient(135deg,#001428,#002244,#003366)'},theme23:{bg:'linear-gradient(135deg,#1f0800,#3d1500,#6b2a00)'},theme24:{bg:'linear-gradient(135deg,#00001f,#000033,#000066)'},theme25:{bg:'linear-gradient(135deg,#000d2e,#001a5c,#00268f)'},theme26:{bg:'linear-gradient(135deg,#000000,#050508,#0a0a10)'},theme27:{bg:'linear-gradient(135deg,#001a0d,#003319,#004d26)'},theme28:{bg:'linear-gradient(135deg,#0d1f2e,#1a3040,#263d54)'},theme29:{bg:'linear-gradient(135deg,#080808,#111111,#1c1c1c)'},theme30:{bg:'linear-gradient(135deg,#1f001f,#3d0040,#660066)'},theme31:{bg:'linear-gradient(135deg,#001f2e,#003344,#004d5c)'},theme32:{bg:'linear-gradient(135deg,#0d001f,#001a1a,#001a2e)'},theme33:{bg:'linear-gradient(135deg,#00001f,#00003d,#00006b)'},theme34:{bg:'linear-gradient(135deg,#0a0f14,#141f2e,#1e2d40)'},theme35:{bg:'linear-gradient(135deg,#071a00,#0f2e00,#1a4d00)'},theme36:{bg:'linear-gradient(135deg,#0d1520,#16253a,#1f3352)'},theme37:{bg:'linear-gradient(135deg,#1f1000,#3d2200,#6b3d00)'},theme38:{bg:'linear-gradient(135deg,#080f1a,#0f1f33,#162e4d)'},theme39:{bg:'linear-gradient(135deg,#001a0a,#003314,#004d1e)'},theme40:{bg:'linear-gradient(135deg,#1a0d00,#331a00,#4d2600)'},theme41:{bg:'linear-gradient(135deg,#001a33,#001940,#1a0d00)'},theme42:{bg:'linear-gradient(135deg,#000d1f,#001933,#002040)'},theme43:{bg:'linear-gradient(135deg,#1a0000,#330000,#4d0000)'},theme44:{bg:'linear-gradient(135deg,#0d0800,#1a1100,#2e1f00)'},theme45:{bg:'linear-gradient(135deg,#1f0800,#4d1500,#732600)'},theme46:{bg:'linear-gradient(135deg,#00001f,#00003d,#001a33)'},theme47:{bg:'linear-gradient(135deg,#001a0d,#002e19,#004d2a)'},theme48:{bg:'linear-gradient(135deg,#000d1a,#001429,#001a1a)'},theme49:{bg:'linear-gradient(135deg,#1f0000,#3d0900,#660f00)'},theme50:{bg:'linear-gradient(135deg,#1a0033,#2d0066,#400080)'},theme51:{bg:'linear-gradient(135deg,#0d0022,#1a0033,#260040)'},theme52:{bg:'linear-gradient(135deg,#0d0d00,#1f1f00,#333300)'},theme53:{bg:'linear-gradient(135deg,#000814,#000d26,#001540)'},theme54:{bg:'linear-gradient(135deg,#3d0022,#6b1a40,#a0245c)'},theme55:{bg:'linear-gradient(135deg,#1a0a2e,#2d1a4d,#3d2266)'},theme56:{bg:'linear-gradient(135deg,#1f1028,#2e1840,#3d2255)'},theme57:{bg:'linear-gradient(135deg,#1f1a28,#2e2840,#3d3552)'},theme58:{bg:'linear-gradient(135deg,#1a1028,#2a1a3d,#3a2452)'},theme59:{bg:'linear-gradient(135deg,#1f0a1f,#33103a,#4d1a55)'},theme60:{bg:'linear-gradient(135deg,#1f1028,#301840,#402255)'},theme61:{bg:'linear-gradient(135deg,#2e0a1a,#4d1a33,#6b2247)'},theme62:{bg:'linear-gradient(135deg,#330011,#66002b,#99003d)'},theme63:{bg:'linear-gradient(135deg,#1f0a28,#33113d,#4d1a55)'},theme64:{bg:'linear-gradient(135deg,#330022,#660044,#990055)'},theme65:{bg:'linear-gradient(135deg,#1a1428,#2d2244,#3d3055)'},theme66:{bg:'linear-gradient(135deg,#1f1800,#3d3200,#5c4a00)'},theme67:{bg:'linear-gradient(135deg,#2e0a22,#4d1a3d,#662252)'},theme68:{bg:'linear-gradient(135deg,#1f0d00,#3d1f00,#5c3300)'},theme69:{bg:'linear-gradient(135deg,#1f1428,#33223d,#4d3352)'},theme70:{bg:'linear-gradient(135deg,#2e0011,#550022,#7a0033)'},theme71:{bg:'linear-gradient(135deg,#1a1428,#2e2440,#3d3352)'},theme72:{bg:'linear-gradient(135deg,#2e0a1a,#55142e,#7a1f44)'},theme73:{bg:'linear-gradient(135deg,#0d1a28,#162840,#1f3855)'},theme74:{bg:'linear-gradient(135deg,#2e0a1a,#4d1a33,#662247)'},theme75:{bg:'linear-gradient(135deg,#1f1028,#331840,#4a2252)'},theme76:{bg:'linear-gradient(135deg,#2e1100,#4d2200,#663300)'},theme77:{bg:'linear-gradient(135deg,#3e1736,#702963,#a2749a)'},theme78:{bg:'linear-gradient(135deg,#004646,#008080,#59acac)'},theme79:{bg:'linear-gradient(135deg,#290202,#4a0404,#895c5c)'},theme80:{bg:'linear-gradient(135deg,#7b618c,#e0b0ff,#ebccff)'},theme81:{bg:'linear-gradient(135deg,#380121,#66023c,#9c5b80)'},theme82:{bg:'linear-gradient(135deg,#153556,#26619c,#7298bf)'},theme83:{bg:'linear-gradient(135deg,#2b321b,#4e5b31,#8c9479)'},theme84:{bg:'linear-gradient(135deg,#005c3b,#00a86b,#59c69f)'},theme85:{bg:'linear-gradient(135deg,#434983,#7984ee,#a8aff4)'},theme86:{bg:'linear-gradient(135deg,#75601e,#d4af37,#e3cb7d)'},theme87:{bg:'linear-gradient(135deg,#773520,#d9603b,#e69880)'},theme88:{bg:'linear-gradient(135deg,#505972,#92a1cf,#b8c2e0)'},theme89:{bg:'linear-gradient(135deg,#5a807b,#a4e8e0,#c4f0eb)'},theme90:{bg:'linear-gradient(135deg,#770f8a,#d81bfa,#e66bfc)'},theme91:{bg:'linear-gradient(135deg,#020816,#040e28,#5c6273)'},theme92:{bg:'linear-gradient(135deg,#8a2402,#fb4103,#fc845b)'},theme93:{bg:'linear-gradient(135deg,#1a0127,#2f0147,#785a87)'},theme94:{bg:'linear-gradient(135deg,#728c7e,#cfffe5,#e0ffee)'},theme95:{bg:'linear-gradient(135deg,#022412,#034121,#5b846f)'},theme96:{bg:'linear-gradient(135deg,#2b7a03,#4edd05,#8ce95c)'},theme97:{bg:'linear-gradient(135deg,#64448b,#b57bfc,#cfa9fd)'},theme98:{bg:'linear-gradient(135deg,#594302,#a17a03,#c2a95b)'},theme99:{bg:'linear-gradient(135deg,#7c0326,#e10645,#ec5d86)'},theme100:{bg:'linear-gradient(135deg,#1f6c7b,#39c4e0,#7ed9eb)'},theme101:{bg:'linear-gradient(135deg,#84888c,#f0f8ff,#f5faff)'},theme102:{bg:'linear-gradient(135deg,#608383,#afeeee,#cbf4f4)'},theme103:{bg:'linear-gradient(135deg,#617b7f,#b0e0e6,#ccebef)'},theme104:{bg:'linear-gradient(135deg,#0e0e3e,#191970,#6a6aa2)'},theme105:{bg:'linear-gradient(135deg,#040918,#08102b,#5e6475)'},theme106:{bg:'linear-gradient(135deg,#414b54,#778899,#a7b2bd)'},theme107:{bg:'linear-gradient(135deg,#007173,#00ced1,#59dfe1)'},theme108:{bg:'linear-gradient(135deg,#495562,#849bb3,#afbece)'},theme109:{bg:'linear-gradient(135deg,#7c8285,#e1edf1,#ecf3f6)'},theme110:{bg:'linear-gradient(135deg,#516067,#93afbb,#b9cbd3)'},theme111:{bg:'linear-gradient(135deg,#5a337d,#a45de4,#c496ed)'},theme112:{bg:'linear-gradient(135deg,#190f3f,#2e1c72,#776ba3)'},theme113:{bg:'linear-gradient(135deg,#264863,#4682b4,#87aece)'},theme114:{bg:'linear-gradient(135deg,#768188,#d6eaf8,#e4f1fa)'},theme115:{bg:'linear-gradient(135deg,#7b888a,#e0f7fa,#ebfafc)'}
+};
+function setTheme(name){
+    if(!themes[name])return;
+    const overlay=document.getElementById('theme-overlay');
+    overlay.style.opacity='1';
+    setTimeout(()=>{
+        document.body.style.background=themes[name].bg;
+        document.documentElement.style.background=themes[name].bg;
+        document.querySelectorAll('.theme-card').forEach(c=>c.classList.remove('active'));
+        const card=document.getElementById('theme-'+name);
+        if(card)card.classList.add('active');
+        overlay.style.opacity='0';
+        if(typeof mcCheckThemeLightness==='function')mcCheckThemeLightness();
+    },200);
+    try{localStorage.setItem('multicalc_theme',name);}catch(e){}
+}
+// Load saved
+try{const s=localStorage.getItem('multicalc_theme');if(s&&themes[s])setTheme(s);}catch(e){}
+</script>
+</body>
+</html>

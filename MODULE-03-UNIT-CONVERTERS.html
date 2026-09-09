@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MODULE 03 — Unit Converters</title>
+<style>
+/* ── SHARED BASE CSS ── */
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;}
+html{background:#0f172a;min-height:100%;}
+body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#1a1f3a 100%);min-height:100dvh;min-height:100vh;color:white;overflow-x:hidden;}
+body::before,body::after{content:'';position:fixed;border-radius:50%;pointer-events:none;z-index:0;}
+body::before{width:420px;height:420px;background:radial-gradient(circle,rgba(99,102,241,0.09) 0%,transparent 70%);top:-80px;left:-80px;}
+body::after{width:360px;height:360px;background:radial-gradient(circle,rgba(168,85,247,0.07) 0%,transparent 70%);bottom:40px;right:-60px;}
+.screen{display:none;padding:20px;padding-bottom:170px;min-height:100dvh;min-height:100vh;position:relative;z-index:1;}
+.screen.active{display:block;animation:screenIn 0.5s cubic-bezier(0.2,0.8,0.2,1) both;}
+@keyframes screenIn{from{opacity:0;transform:scale3d(0.96,0.96,1) translateY(10px);}to{opacity:1;transform:scale3d(1,1,1) translateY(0);}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(15px);}to{opacity:1;transform:translateY(0);}}
+.header{text-align:center;padding:40px 20px 20px;}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.logo-icon{width:48px;height:48px;background:linear-gradient(135deg,#6366f1,#a855f7);border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.8rem;color:#fff;box-shadow:0 8px 24px rgba(99,102,241,0.3);position:relative;overflow:hidden;}
+.logo-icon::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(45deg,transparent 30%,rgba(255,255,255,0.1) 50%,transparent 70%);animation:shimmer 3s infinite;}
+@keyframes shimmer{0%{transform:translate(-100%,-100%);}100%{transform:translate(100%,100%);}}
+.logo-text{font-size:2.5rem;font-weight:700;background:linear-gradient(135deg,#fff,#e2e8f0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.logo span{background:linear-gradient(135deg,#6366f1,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.subtitle{color:#94a3b8;font-size:0.95rem;margin-top:5px;}
+.back-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#94a3b8;font-size:0.95rem;padding:10px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;margin-bottom:20px;transition:all 0.2s cubic-bezier(0.34,1.56,0.64,1);}
+.back-btn:hover{color:#e2e8f0;background:rgba(255,255,255,0.1);transform:translateX(-3px);}
+.input-field{width:100%;background:rgba(30,41,59,0.6);border:1px solid rgba(71,85,105,0.3);border-radius:15px;padding:18px;font-size:1.1rem;color:white;outline:none;transition:border-color 0.25s ease,box-shadow 0.25s ease;}
+.input-field:focus{border-color:rgba(99,102,241,0.7)!important;box-shadow:0 0 0 3px rgba(99,102,241,0.15)!important;background:rgba(30,41,59,0.85)!important;}
+::-webkit-scrollbar{width:8px;}::-webkit-scrollbar-track{background:rgba(15,23,42,0.3);}::-webkit-scrollbar-thumb{background:rgba(71,85,105,0.5);border-radius:4px;}
+
+/* ── Unit Categories Hub ── */
+.unit-categories{display:grid;grid-template-columns:repeat(2,1fr);gap:15px;max-width:500px;margin:0 auto;}
+.unit-card{border-radius:20px;padding:30px 20px;text-align:center;cursor:pointer;transition:all 0.3s ease;color:white;}
+.unit-card:hover{transform:translateY(-5px) scale(1.03);box-shadow:0 20px 40px rgba(0,0,0,0.4),0 0 30px rgba(168,85,247,0.15);}
+.unit-card:active{transform:scale(0.95)!important;transition:transform 0.1s ease!important;}
+.unit-card .icon{font-size:2.2rem;margin-bottom:12px;}
+.unit-card .label{font-size:1rem;font-weight:600;}
+
+/* Card colours */
+.card-blue{background:linear-gradient(135deg,#3b82f6,#1d4ed8)!important;}
+.card-purple{background:linear-gradient(135deg,#a855f7,#7e22ce)!important;}
+.card-green{background:linear-gradient(135deg,#10b981,#047857)!important;}
+.card-orange{background:linear-gradient(135deg,#f59e0b,#b45309)!important;}
+.card-teal{background:linear-gradient(135deg,#14b8a6,#0f766e)!important;}
+.card-indigo{background:linear-gradient(135deg,#6366f1,#4338ca)!important;}
+.card-cyan{background:linear-gradient(135deg,#06b6d4,#0e7490)!important;}
+.card-rose{background:linear-gradient(135deg,#f43f5e,#be123c)!important;}
+.card-emerald{background:linear-gradient(135deg,#10b981,#047857)!important;}
+.card-amber{background:linear-gradient(135deg,#f59e0b,#b45309)!important;}
+.card-red{background:linear-gradient(135deg,#ef4444,#991b1b)!important;}
+.card-yellow{background:linear-gradient(135deg,#eab308,#854d0e)!important;}
+.card-pink{background:linear-gradient(135deg,#ec4899,#9d174d)!important;}
+.card-lime{background:linear-gradient(135deg,#84cc16,#3f6212)!important;}
+.card-gray{background:linear-gradient(135deg,#64748b,#334155)!important;}
+
+/* ── Generic Converter Screen ── */
+.unit-converter-container{max-width:500px;margin:0 auto;background:rgba(15,23,42,0.4);border:1px solid rgba(71,85,105,0.3);border-radius:25px;padding:30px;}
+.unit-title{font-size:1.5rem;font-weight:600;margin-bottom:25px;}
+.converter-group{margin-bottom:20px;}
+.converter-label{color:#94a3b8;font-size:0.9rem;margin-bottom:10px;display:block;}
+.converter-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;}
+.unit-select{background:rgba(30,41,59,0.6);border:1px solid rgba(71,85,105,0.3);border-radius:15px;padding:18px;font-size:1rem;color:white;outline:none;cursor:pointer;min-width:150px;}
+.unit-select:focus{border-color:#6366f1;background:rgba(30,41,59,0.8);}
+.unit-select option{background:#1e293b;}
+.swap-icon{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#2563eb);border:none;color:white;font-size:1.3rem;cursor:pointer;margin:-10px auto 10px;display:flex;align-items:center;justify-content:center;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1),box-shadow 0.3s ease;}
+.swap-icon:hover{transform:rotate(180deg) scale(1.12);box-shadow:0 6px 24px rgba(59,130,246,0.4);}
+.result-box{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:20px;padding:20px;text-align:center;font-size:1.1rem;margin-top:20px;animation:resultPop 0.45s cubic-bezier(0.34,1.56,0.64,1) both;}
+@keyframes resultPop{0%{opacity:0;transform:scale(0.88) translateY(10px);}60%{transform:scale(1.03) translateY(-2px);}100%{opacity:1;transform:scale(1) translateY(0);}}
+
+/* Stagger animations for hub */
+.screen.active .unit-categories>*{animation:fadeIn 0.5s cubic-bezier(0.2,0.8,0.2,1) both;}
+.screen.active .unit-categories>*:nth-child(1){animation-delay:0.04s;}
+.screen.active .unit-categories>*:nth-child(2){animation-delay:0.08s;}
+.screen.active .unit-categories>*:nth-child(3){animation-delay:0.12s;}
+.screen.active .unit-categories>*:nth-child(4){animation-delay:0.16s;}
+.screen.active .unit-categories>*:nth-child(n+5){animation-delay:0.20s;}
+
+@media(min-width:601px){.unit-categories{grid-template-columns:repeat(3,1fr)!important;}.unit-converter-container{max-width:700px!important;}}
+@media(max-width:480px){.screen{padding:15px;padding-bottom:140px;}.unit-card{padding:20px 12px;}.unit-card .icon{font-size:1.8rem;}.unit-card .label{font-size:0.9rem;}}
+
+/* ── Light-theme contrast overrides (auto-added) ── */
+body.theme-light .back-btn{background:#1e293b;border-color:#334155;color:#f1f5f9;}
+body.theme-light .back-btn:hover{background:#334155;border-color:#475569;color:#ffffff;}
+body.theme-light .subtitle{color:#475569;}
+body.theme-light .logo-text{background:linear-gradient(135deg,#1e293b,#334155);-webkit-background-clip:text;background-clip:text;}
+body.theme-light .unit-converter-container{background:rgba(15,23,42,0.88);}
+body.theme-light .input-field{background:rgba(30,41,59,0.88);}
+body.theme-light .input-field:focus{background:rgba(30,41,59,0.92);}
+body.theme-light .unit-select{background:rgba(30,41,59,0.88);}
+body.theme-light .unit-select:focus{background:rgba(30,41,59,0.92);}
+</style>
+</head>
+<body>
+
+<!-- ═══ HUB SCREEN ═══════════════════════════════════════════════════════════ -->
+<div id="scr-units" class="screen active">
+    <div class="header">
+        <div class="logo"><div class="logo-icon">∑</div><div class="logo-text">Multi<span>Calc</span></div></div>
+        <div class="subtitle t-header-sub">Math • Physics • Units • Currency</div>
+    </div>
+    <button class="back-btn" type="button">← <span class="t-back">Πίσω</span></button>
+    <div class="unit-categories">
+        <div class="unit-card card-cyan"    onclick="openConverter('length')">    <div class="icon">📏</div><div class="label" data-cat="length">Length</div></div>
+        <div class="unit-card card-pink"    onclick="openConverter('area')">      <div class="icon">📦</div><div class="label" data-cat="area">Area</div></div>
+        <div class="unit-card card-green"   onclick="openConverter('volume')">    <div class="icon">🧊</div><div class="label" data-cat="volume">Volume</div></div>
+        <div class="unit-card card-orange"  onclick="openConverter('mass')">      <div class="icon">⚖️</div><div class="label" data-cat="mass">Mass</div></div>
+        <div class="unit-card card-red"     onclick="openConverter('temp')">      <div class="icon">🌡️</div><div class="label" data-cat="temp">Temperature</div></div>
+        <div class="unit-card card-indigo"  onclick="openConverter('speed')">     <div class="icon">⏱️</div><div class="label" data-cat="speed">Speed</div></div>
+        <div class="unit-card card-yellow"  onclick="openConverter('time')">      <div class="icon">🕐</div><div class="label" data-cat="time">Time</div></div>
+        <div class="unit-card card-purple"  onclick="openConverter('energy')">    <div class="icon">⚡</div><div class="label" data-cat="energy">Energy</div></div>
+        <div class="unit-card card-gray"    onclick="openConverter('pressure')">  <div class="icon">📊</div><div class="label" data-cat="pressure">Pressure</div></div>
+        <div class="unit-card card-purple"  onclick="openConverter('data')">      <div class="icon">💾</div><div class="label" data-cat="data">Data Storage</div></div>
+        <div class="unit-card card-lime"    onclick="openConverter('angle')">     <div class="icon">📐</div><div class="label" data-cat="angle">Angle</div></div>
+        <div class="unit-card card-blue"    onclick="openConverter('frequency')"> <div class="icon">〰️</div><div class="label" data-cat="frequency">Frequency</div></div>
+        <div class="unit-card card-amber"   onclick="openConverter('force')">     <div class="icon">💪</div><div class="label" data-cat="force">Force</div></div>
+        <div class="unit-card card-emerald" onclick="openConverter('power')">     <div class="icon">🔋</div><div class="label" data-cat="power">Power</div></div>
+        <div class="unit-card card-rose"    onclick="openConverter('fuel')">      <div class="icon">⛽</div><div class="label" data-cat="fuel">Fuel Economy</div></div>
+        <div class="unit-card card-teal"    onclick="openConverter('accel')">     <div class="icon">🚀</div><div class="label" data-cat="accel">Acceleration</div></div>
+        <div class="unit-card card-cyan"    onclick="openConverter('datarate')">  <div class="icon">📡</div><div class="label" data-cat="datarate">Data Transfer</div></div>
+        <div class="unit-card card-blue"    onclick="openConverter('flow')">      <div class="icon">💧</div><div class="label" data-cat="flow">Flow Rate</div></div>
+        <div class="unit-card card-purple"  onclick="openConverter('viscosity')"> <div class="icon">🫧</div><div class="label" data-cat="viscosity">Viscosity</div></div>
+        <div class="unit-card card-yellow"  onclick="openConverter('illuminance')"><div class="icon">💡</div><div class="label" data-cat="illuminance">Illuminance</div></div>
+        <div class="unit-card card-rose"    onclick="openConverter('radiation')"> <div class="icon">☢️</div><div class="label" data-cat="radiation">Radiation Dose</div></div>
+        <div class="unit-card card-indigo"  onclick="openConverter('magflux')">   <div class="icon">🧲</div><div class="label" data-cat="magflux">Magnetic Flux</div></div>
+        <div class="unit-card card-teal"    onclick="openConverter('magdensity')"><div class="icon">🔵</div><div class="label" data-cat="magdensity">Flux Density</div></div>
+        <div class="unit-card card-cyan"    onclick="openConverter('magfield')">  <div class="icon">🔮</div><div class="label" data-cat="magfield">Mag. Field</div></div>
+        <div class="unit-card card-amber"   onclick="openConverter('magmmf')">    <div class="icon">🔌</div><div class="label" data-cat="magmmf">Mag. Force</div></div>
+        <div class="unit-card card-orange"  onclick="openConverter('luminance')"> <div class="icon">🌟</div><div class="label" data-cat="luminance">Luminance</div></div>
+        <div class="unit-card card-lime"    onclick="openConverter('lumflux')">   <div class="icon">✨</div><div class="label" data-cat="lumflux">Luminous Flux</div></div>
+        <div class="unit-card card-emerald" onclick="openConverter('lumintensity')"><div class="icon">🕯️</div><div class="label" data-cat="lumintensity">Luminous Intensity</div></div>
+    </div>
+</div>
+
+<!-- ═══ GENERIC CONVERTER SCREEN ═══════════════════════════════════════════ -->
+<div id="scr-converter" class="screen">
+    <div class="header">
+        <div class="logo"><div class="logo-icon">∑</div><div class="logo-text">Multi<span>Calc</span></div></div>
+        <div class="subtitle t-header-sub">Math • Physics • Units • Currency</div>
+    </div>
+    <button class="back-btn" type="button" onclick="showHub()">← <span id="lbl-back-to-units">Back to Units</span></button>
+    <div class="unit-converter-container">
+        <div class="unit-title" id="conv-title">Length</div>
+        <div class="converter-group">
+            <label class="converter-label" id="lbl-conv-from">From</label>
+            <div class="converter-row">
+                <input type="number" id="conv-from-val" class="input-field" value="1" oninput="doConvert()">
+                <select id="conv-from-unit" class="unit-select" onchange="doConvert()"></select>
+            </div>
+        </div>
+        <div style="text-align:center;">
+            <button class="swap-icon" onclick="doSwap()" aria-label="Swap units">⬇</button>
+        </div>
+        <div class="converter-group">
+            <label class="converter-label" id="lbl-conv-to">To</label>
+            <div class="converter-row">
+                <input type="number" id="conv-to-val" class="input-field" readonly>
+                <select id="conv-to-unit" class="unit-select" onchange="doConvert()"></select>
+            </div>
+        </div>
+        <div class="result-box" id="conv-result">–</div>
+    </div>
+</div>
+
+<script>
+/* ── Light-theme contrast guard ─────────────────────────────
+   Detects whether the currently active body background is a
+   light color (any theme, present or future) and toggles
+   body.theme-light so panels/text/back-btn switch to a closed,
+   readable palette. getComputedStyle always normalizes colors
+   to rgb()/rgba() — never hex — so we parse that, not hex.
+   Fully-transparent stops (alpha 0, e.g. body's own unset
+   background-color) are skipped so they don't drag the
+   average down as if they were a real black stop.
+   A MutationObserver on body's style attribute acts as the
+   "signal": whenever ANYTHING changes the body background
+   (theme picker, app boot, future code), every already-loaded
+   module reacts instantly, with no fixed timing assumptions. */
+function mcRelLuminanceRGB(r,g,b){
+    const lin=c=>{c/=255;return c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4);};
+    return 0.2126*lin(r)+0.7152*lin(g)+0.0722*lin(b);
+}
+function mcExtractRGB(str){
+    const out=[];
+    (str.match(/rgba?\([^)]+\)/g)||[]).forEach(m=>{
+        const n=m.match(/[\d.]+/g).map(Number);
+        if(n.length>=4 && n[3]===0) return;
+        out.push([n[0],n[1],n[2]]);
+    });
+    (str.match(/#[0-9a-fA-F]{6}/g)||[]).forEach(h=>{
+        out.push([parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]);
+    });
+    return out;
+}
+function mcCheckThemeLightness(){
+    const cs=getComputedStyle(document.body);
+    const str=(cs.backgroundImage&&cs.backgroundImage!=='none'?cs.backgroundImage:'')+' '+cs.backgroundColor;
+    const colors=mcExtractRGB(str);
+    if(!colors.length){document.body.classList.remove('theme-light');return;}
+    const avg=colors.reduce((s,[r,g,b])=>s+mcRelLuminanceRGB(r,g,b),0)/colors.length;
+    document.body.classList.toggle('theme-light',avg>0.18);
+}
+mcCheckThemeLightness();
+window.addEventListener('load',mcCheckThemeLightness);
+setTimeout(mcCheckThemeLightness,300);
+try{
+    new MutationObserver(mcCheckThemeLightness)
+        .observe(document.body,{attributes:true,attributeFilter:['style','class']});
+}catch(e){}
+
+/* ═══════════════════════════════════════════════════════
+   MODULE 03: UNIT CONVERTERS — JAVASCRIPT
+   ═══════════════════════════════════════════════════════ */
+
+/* ── conversionFactors (source: lines 6591-6771) ── */
+var conversionFactors = {
+    length:   { mm:1, cm:10, m:1000, km:1000000, in:25.4, ft:304.8, yd:914.4, mi:1609344, nm:0.000001, um:0.001, dm:100, hm:100000, nmi:1852000, ly:9.461e18, pc:3.086e19, au:1.496e14 },
+    area:     { mm2:1, cm2:100, m2:1000000, km2:1e12, in2:645.16, ft2:92903.04, yd2:836127.36, ac:4046856422.4, ha:1e10, mi2:2.59e12 },
+    volume:   { ml:1, l:1000, m3:1000000, gal:3785.41, qt:946.353, pt:473.176, cup:236.588, floz:29.5735, tbsp:14.7868, tsp:4.92892, bbl:158987, ft3:28316.8, in3:16.3871, cm3:1 },
+    mass:     { mg:1, g:1000, kg:1000000, t:1e9, oz:28349.5, lb:453592, st:6350293, ug:0.001, ton_us:907185000, ton_uk:1016046909 },
+    speed:    { ms:1, kmh:0.277778, mph:0.44704, fps:0.3048, kn:0.514444, mach:340.29, c:299792458 },
+    time:     { ns:0.000001, us:0.001, ms:1, s:1000, min:60000, h:3600000, d:86400000, wk:604800000, mo:2592000000, y:31536000000, dec:315360000000 },
+    energy:   { j:1, kj:1000, mj:1000000, gj:1e9, cal:4.184, kcal:4184, wh:3600, kwh:3600000, mwh:3.6e9, ev:1.60218e-19, btu:1055.06, therm:1.055e8, ftlb:1.35582, tj:1e12, pj:1e15, ej_e:1e18, tnt:4.184e9, ktnt:4.184e12, mtnt:4.184e15, gtnt:4.184e18, ttnt:4.184e21, toe:4.1868e10, tce:2.931e10, boe:6.117e9 },
+    pressure: { pa:1, kpa:1000, mpa:1000000, bar:100000, mbar:100, atm:101325, psi:6894.76, torr:133.322, mmhg:133.322, inhg:3386.39 },
+    data:     { b:1, kb:1024, mb:1048576, gb:1073741824, tb:1099511627776, pb:1.126e15, eb:1.153e18, bit:0.125, kbit:128, mbit:131072, gbit:1.342e8, tbit:1.374e11, eb_si:1e18, zb:1e21, yb:1e24, bb:1e27, gbb:1e30 },
+    angle:    { deg:1, rad:57.2957795, grad:0.9, arcmin:0.016666667, arcsec:0.000277778, turn:360, mil:0.05625 },
+    frequency:{ hz:1, khz:1000, mhz:1000000, ghz:1e9, rpm:0.016666667, rps:0.159154943 },
+    force:    { n:1, kn:1000, lbf:4.44822, kgf:9.80665, dyn:0.00001, ozf:0.278014, pdl:0.138255, mn:0.001 },
+    power:    { w:1, kw:1000, mw:1000000, gw:1e9, hp:745.7, btu:0.293071, cal_s:4.184, ft_lb_s:1.35582, ps:735.499 },
+    accel:    { m_s2:1, cm_s2:0.01, ft_s2:0.3048, in_s2:0.0254, g0:9.80665, gal:0.01, kmh_s:0.277778, mph_s:0.44704 },
+    datarate: { bps:1, kbps:1000, mbps:1e6, gbps:1e9, tbps:1e12, KBps:8000, MBps:8e6, GBps:8e9, TBps:8e12 },
+    flow:     { m3_s:1, m3_min:0.016666667, m3_h:0.000277778, l_s:0.001, l_min:0.000016667, l_h:0.000000277778, ml_s:0.000001, gpm:0.0000630902, cfm:0.000471947, ft3_s:0.0283168, svd:1e6, km3_d:11574.074, km3_y:31.6888, gl_s:1000, gl_min:16.6667, gl_d:0.011574 },
+    viscosity:{ pa_s:1, cp:0.001, p:0.1, mp:0.0001, mpa_s:0.001, lbf_s_ft2:47.8803, lbm_ft_s:1.48816 },
+    illuminance:{ lux:1, mlux:0.001, klux:1000, fc:10.7639, phot:10000, nx:0.0001, ulux:0.000001, megalux:1e6, gilux:1e9 },
+    radiation:{ gy:1, mgy:0.001, ugy:0.000001, kgy:1000, rad_d:0.01, erg_g:0.0001, sv:1, msv:0.001, usv:0.000001, rem:0.01, mrem:0.00001 },
+    magflux:  { wb:1, mwb:0.001, uwb:1e-6, nwb:1e-9, kwb:1000, mxw:1e-8, vs:1 },
+    magdensity:{ t:1, mt:0.001, ut:1e-6, nt:1e-9, pt:1e-12, g:1e-4, mg_d:1e-7, ug_d:1e-10, gamma:1e-9 },
+    magfield: { a_m:1, ka_m:1000, ma_m:0.001, ga_m:1e9, oe:79.5775, moe:0.0795775, koe:79577.5 },
+    magmmf:   { at:1, kat:1000, mat:0.001, uat:1e-6, gb:0.79577472 },
+    luminance:{ cd_m2:1, mcd_m2:0.001, kcd_m2:1000, Mcd_m2:1e6, fL:3.42626, sb:10000, la:3183.099, asb:0.31831, mla:3.18310, cd_ft2:10.7639, cd_in2:1550.003 },
+    lumflux:  { lm:1, klm:1000, Mlm:1e6, ulm:1e-6, cd_sr:1, cp:12.56637 },
+    lumintensity:{ cd:1, mcd:0.001, kcd:1000, Mcd:1e6, ucd:1e-6, cp_i:1.00002, hk:0.903 }
+};
+
+/* ── Unit labels per category ── */
+var unitLabels = {
+    length:   { nm:'Nanometers (nm)', um:'Micrometers (μm)', mm:'Millimeters (mm)', cm:'Centimeters (cm)', dm:'Decimeters (dm)', m:'Meters (m)', km:'Kilometers (km)', in:'Inches (in)', ft:'Feet (ft)', yd:'Yards (yd)', mi:'Miles (mi)', nmi:'Nautical Miles (nmi)', ly:'Light Years (ly)', au:'Astronomical Units (AU)' },
+    area:     { mm2:'mm²', cm2:'cm²', m2:'m²', km2:'km²', in2:'in²', ft2:'ft²', yd2:'yd²', ac:'Acres (ac)', ha:'Hectares (ha)', mi2:'mi²' },
+    volume:   { ml:'Milliliters (ml)', l:'Liters (L)', m3:'Cubic Meters (m³)', cm3:'Cubic Centimeters (cm³)', gal:'Gallons US (gal)', qt:'Quarts (qt)', pt:'Pints (pt)', cup:'Cups', floz:'Fl. Ounces (fl oz)', tbsp:'Tablespoons (tbsp)', tsp:'Teaspoons (tsp)', bbl:'Barrels (bbl)', ft3:'Cubic Feet (ft³)', in3:'Cubic Inches (in³)' },
+    mass:     { ug:'Micrograms (μg)', mg:'Milligrams (mg)', g:'Grams (g)', kg:'Kilograms (kg)', t:'Metric Tons (t)', oz:'Ounces (oz)', lb:'Pounds (lb)', st:'Stone (st)', ton_us:'US Short Ton', ton_uk:'UK Long Ton' },
+    temp:     { c:'Celsius (°C)', f:'Fahrenheit (°F)', k:'Kelvin (K)', r:'Rankine (°R)', re:'Réaumur (°Ré)', n:'Newton (°N)' },
+    speed:    { ms:'m/s', kmh:'km/h', mph:'mph', fps:'ft/s', kn:'Knots (kn)', mach:'Mach', c:'Speed of Light (c)' },
+    time:     { ns:'Nanoseconds (ns)', us:'Microseconds (μs)', ms:'Milliseconds (ms)', s:'Seconds (s)', min:'Minutes (min)', h:'Hours (h)', d:'Days (d)', wk:'Weeks (wk)', mo:'Months (mo)', y:'Years (y)', dec:'Decades (dec)' },
+    energy:   { j:'Joules (J)', kj:'Kilojoules (kJ)', mj:'Megajoules (MJ)', gj:'Gigajoules (GJ)', cal:'Calories (cal)', kcal:'Kilocalories (kcal)', wh:'Watt-hours (Wh)', kwh:'kWh', mwh:'MWh', ev:'Electronvolts (eV)', btu:'BTU', therm:'Therm', ftlb:'Foot-pound (ft·lb)', tj:'Terajoules (TJ)', pj:'Petajoules (PJ)', ej_e:'Exajoules (EJ)', tnt:'Ton TNT', ktnt:'Kiloton TNT', mtnt:'Megaton TNT', gtnt:'Gigaton TNT', ttnt:'Teraton TNT', toe:'Ton Oil Equiv. (toe)', tce:'Ton Coal Equiv.', boe:'Barrel Oil Equiv.' },
+    pressure: { pa:'Pascals (Pa)', kpa:'Kilopascals (kPa)', mpa:'Megapascals (MPa)', bar:'Bar', mbar:'Millibar', atm:'Atmospheres (atm)', psi:'PSI', torr:'Torr', mmhg:'mmHg', inhg:'inHg' },
+    data:     { bit:'Bits', b:'Bytes (B)', kbit:'Kilobits (Kbit)', kb:'Kilobytes (KB)', mbit:'Megabits (Mbit)', mb:'Megabytes (MB)', gbit:'Gigabits (Gbit)', gb:'Gigabytes (GB)', tbit:'Terabits (Tbit)', tb:'Terabytes (TB)', pb:'Petabytes (PB)', eb:'Exabytes (EB)', eb_si:'Exabytes SI', zb:'Zettabytes (ZB)', yb:'Yottabytes (YB)', bb:'Brontobytes', gbb:'Geopbytes' },
+    angle:    { deg:'Degrees (°)', rad:'Radians (rad)', grad:'Gradians (grad)', arcmin:'Arcminutes (\')', arcsec:'Arcseconds (")', turn:'Turns', mil:'Milliradians (mil)' },
+    frequency:{ hz:'Hertz (Hz)', khz:'Kilohertz (kHz)', mhz:'Megahertz (MHz)', ghz:'Gigahertz (GHz)', rpm:'RPM', rps:'RPS' },
+    force:    { n:'Newtons (N)', kn:'Kilonewtons (kN)', mn:'Millinewtons (mN)', lbf:'Pound-force (lbf)', kgf:'Kilogram-force (kgf)', dyn:'Dynes (dyn)', ozf:'Ounce-force (ozf)', pdl:'Poundals (pdl)' },
+    power:    { w:'Watts (W)', kw:'Kilowatts (kW)', mw:'Megawatts (MW)', gw:'Gigawatts (GW)', hp:'Horsepower (hp)', ps:'Metric HP (PS)', btu:'BTU/h', cal_s:'cal/s', ft_lb_s:'ft·lb/s' },
+    fuel:     { kml:'km/L', mpg_us:'MPG (US)', mpg_uk:'MPG (UK)', l100km:'L/100km' },
+    accel:    { m_s2:'m/s²', cm_s2:'cm/s²', ft_s2:'ft/s²', in_s2:'in/s²', g0:'g (9.81 m/s²)', gal:'Gal (cm/s²)', kmh_s:'km/h per s', mph_s:'mph per s' },
+    datarate: { bps:'bps', kbps:'Kbps', mbps:'Mbps', gbps:'Gbps', tbps:'Tbps', KBps:'KB/s', MBps:'MB/s', GBps:'GB/s', TBps:'TB/s' },
+    flow:     { m3_s:'m³/s', m3_min:'m³/min', m3_h:'m³/h', l_s:'L/s', l_min:'L/min', l_h:'L/h', ml_s:'mL/s', gpm:'GPM', cfm:'CFM', ft3_s:'ft³/s', svd:'Sverdrup', km3_d:'km³/day', km3_y:'km³/year', gl_s:'GL/s', gl_min:'GL/min', gl_d:'GL/day' },
+    viscosity:{ pa_s:'Pa·s', cp:'Centipoise (cP)', p:'Poise (P)', mp:'Millipoise (mP)', mpa_s:'mPa·s', lbf_s_ft2:'lbf·s/ft²', lbm_ft_s:'lbm/(ft·s)' },
+    illuminance:{ lux:'Lux (lx)', mlux:'Millilux', klux:'Kilolux', fc:'Foot-candle (fc)', phot:'Phot (ph)', nx:'Nox', ulux:'Microlux', megalux:'Megalux', gilux:'Gigalux' },
+    radiation:{ gy:'Gray (Gy)', mgy:'Milligray (mGy)', ugy:'Microgray (μGy)', kgy:'Kilogray (kGy)', rad_d:'Rad', erg_g:'erg/g', sv:'Sievert (Sv)', msv:'Millisievert (mSv)', usv:'Microsievert (μSv)', rem:'Rem', mrem:'Millirem' },
+    magflux:  { wb:'Weber (Wb)', mwb:'Milliweber (mWb)', uwb:'Microweber (μWb)', nwb:'Nanoweber (nWb)', kwb:'Kiloweber (kWb)', mxw:'Maxwell (Mx)', vs:'Volt·second (V·s)' },
+    magdensity:{ t:'Tesla (T)', mt:'Millitesla (mT)', ut:'Microtesla (μT)', nt:'Nanotesla (nT)', pt:'Picotesla (pT)', g:'Gauss (G)', mg_d:'Milligauss (mG)', ug_d:'Microgauss (μG)', gamma:'Gamma (γ)' },
+    magfield: { a_m:'A/m', ka_m:'kA/m', ma_m:'mA/m', ga_m:'GA/m', oe:'Oersted (Oe)', moe:'Milli-oersted', koe:'Kilo-oersted' },
+    magmmf:   { at:'Ampere-turn (At)', kat:'kAt', mat:'mAt', uat:'μAt', gb:'Gilbert (Gb)' },
+    luminance:{ cd_m2:'cd/m² (Nit)', mcd_m2:'mcd/m²', kcd_m2:'kcd/m²', Mcd_m2:'Mcd/m²', fL:'Foot-lambert (fL)', sb:'Stilb (sb)', la:'Lambert (La)', asb:'Apostilb (asb)', mla:'Millilambert (mLa)', cd_ft2:'cd/ft²', cd_in2:'cd/in²' },
+    lumflux:  { lm:'Lumen (lm)', klm:'Kilolumen (klm)', Mlm:'Megalumen', ulm:'Microlumen', cd_sr:'cd·sr', cp:'Spherical cp' },
+    lumintensity:{ cd:'Candela (cd)', mcd:'Millicandela (mcd)', kcd:'Kilocandela (kcd)', Mcd:'Megacandela', ucd:'Microcandela (μcd)', cp_i:'Int. candle', hk:'Hefner candle' }
+};
+
+/* ── Default units per category ── */
+var defaults = {
+    length:'mm|cm', area:'m2|ft2', volume:'l|gal', mass:'kg|lb', temp:'c|f',
+    speed:'kmh|mph', time:'h|min', energy:'kwh|j', pressure:'bar|psi',
+    data:'gb|mb', angle:'deg|rad', frequency:'hz|khz', force:'n|lbf',
+    power:'kw|hp', fuel:'kml|mpg_us', accel:'m_s2|g0', datarate:'mbps|KBps',
+    flow:'l_s|gpm', viscosity:'pa_s|cp', illuminance:'lux|fc',
+    radiation:'msv|rem', magflux:'wb|mxw', magdensity:'t|g',
+    magfield:'a_m|oe', magmmf:'at|gb', luminance:'cd_m2|fL',
+    lumflux:'lm|klm', lumintensity:'cd|mcd'
+};
+
+/* ── Current category ── */
+var currentCat = '';
+
+/* ── Category → translation key mapping ──
+   Maps internal category ids to the T() keys defined in MODULE-01's
+   translations object (length, area, volume, mass, temperature, ...) */
+var catToTKey = {
+    length:'length', area:'area', volume:'volume', mass:'mass', temp:'temperature',
+    speed:'speed', time:'time', energy:'energy', pressure:'pressure', data:'dataStorage',
+    angle:'angle', frequency:'frequency', force:'force', power:'power', fuel:'fuelEconomy',
+    accel:'acceleration', datarate:'dataTransfer', flow:'flowRate', viscosity:'viscosity',
+    illuminance:'illuminance', radiation:'radiationDose', magflux:'magFlux',
+    magdensity:'magDensity', magfield:'magField', magmmf:'magMMF', luminance:'luminance',
+    lumflux:'lumFlux', lumintensity:'lumIntensity'
+};
+
+/* ── translateUnitsUI() — updates ALL translatable text in this module.
+   Called: (a) once at module load, (b) whenever language changes
+   (registered into window.__mcExtraTranslators, invoked by the App
+   after applyTranslations() runs). Safe to call when T() is unavailable
+   (standalone mode) — falls back to English hardcoded text. ── */
+function translateUnitsUI() {
+    if (typeof T !== 'function') return; // standalone mode — keep static English
+
+    /* Hub card labels */
+    document.querySelectorAll('.unit-card .label[data-cat]').forEach(function(el) {
+        var key = catToTKey[el.dataset.cat];
+        if (key) el.textContent = T(key);
+    });
+
+    /* Converter screen title (only meaningful if a category is open) */
+    if (currentCat && catToTKey[currentCat]) {
+        var titleEl = document.getElementById('conv-title');
+        if (titleEl) titleEl.textContent = T(catToTKey[currentCat]);
+    }
+
+    /* "Back to Units" button */
+    var btu = document.getElementById('lbl-back-to-units');
+    if (btu) btu.textContent = T('backToUnits');
+
+    /* From / To labels */
+    var lblFrom = document.getElementById('lbl-conv-from');
+    if (lblFrom) lblFrom.textContent = T('from');
+    var lblTo = document.getElementById('lbl-conv-to');
+    if (lblTo) lblTo.textContent = T('to');
+}
+
+/* Register with the App's translation refresh system (no-op if standalone) */
+window.__mcExtraTranslators = window.__mcExtraTranslators || [];
+window.__mcExtraTranslators.push(translateUnitsUI);
+
+/* Run once immediately in case language was already selected before
+   this module loaded (e.g. saved in localStorage) */
+translateUnitsUI();
+
+/* ── Show hub / show converter ── */
+function showHub() {
+    document.getElementById('scr-converter').classList.remove('active');
+    document.getElementById('scr-units').classList.add('active');
+}
+
+function openConverter(cat) {
+    currentCat = cat;
+    var labels = unitLabels[cat];
+    if (!labels) return;
+
+    /* Title — translated via T() when available (App mode),
+       falls back to English titleMap in standalone mode */
+    var titleMap = {
+        length:'Length', area:'Area', volume:'Volume', mass:'Mass',
+        temp:'Temperature', speed:'Speed', time:'Time', energy:'Energy',
+        pressure:'Pressure', data:'Data Storage', angle:'Angle',
+        frequency:'Frequency', force:'Force', power:'Power', fuel:'Fuel Economy',
+        accel:'Acceleration', datarate:'Data Transfer Rate', flow:'Flow Rate',
+        viscosity:'Viscosity', illuminance:'Illuminance', radiation:'Radiation Dose',
+        magflux:'Magnetic Flux', magdensity:'Magnetic Flux Density',
+        magfield:'Magnetic Field Strength', magmmf:'Magnetomotive Force',
+        luminance:'Luminance', lumflux:'Luminous Flux', lumintensity:'Luminous Intensity'
+    };
+    var titleText = (typeof T === 'function' && catToTKey[cat])
+        ? T(catToTKey[cat])
+        : (titleMap[cat] || cat);
+    document.getElementById('conv-title').innerText = titleText;
+
+    /* Populate selects */
+    var defs = (defaults[cat] || '|').split('|');
+    var defFrom = defs[0], defTo = defs[1];
+
+    ['conv-from-unit','conv-to-unit'].forEach(function(id, idx) {
+        var sel = document.getElementById(id);
+        sel.innerHTML = '';
+        Object.keys(labels).forEach(function(key) {
+            var opt = document.createElement('option');
+            opt.value = key;
+            opt.text  = labels[key];
+            if (idx === 0 && key === defFrom) opt.selected = true;
+            if (idx === 1 && key === defTo)   opt.selected = true;
+            sel.appendChild(opt);
+        });
+    });
+
+    /* Reset values */
+    document.getElementById('conv-from-val').value = '1';
+    document.getElementById('conv-to-val').value   = '';
+    document.getElementById('conv-result').innerText = '–';
+
+    /* Switch screens */
+    document.getElementById('scr-units').classList.remove('active');
+    document.getElementById('scr-converter').classList.add('active');
+
+    /* Initial conversion */
+    doConvert();
+}
+
+/* ── Core conversion engine (source: lines 8797-8883) ── */
+function convertTemperature(value, from, to) {
+    var celsius;
+    if      (from==='c')  celsius = value;
+    else if (from==='f')  celsius = (value-32)*5/9;
+    else if (from==='k')  celsius = value-273.15;
+    else if (from==='r')  celsius = (value-491.67)*5/9;
+    else if (from==='re') celsius = value*5/4;
+    else if (from==='n')  celsius = value*100/33;
+    if      (to==='c')  return celsius;
+    else if (to==='f')  return (celsius*9/5)+32;
+    else if (to==='k')  return celsius+273.15;
+    else if (to==='r')  return (celsius+273.15)*9/5;
+    else if (to==='re') return celsius*4/5;
+    else if (to==='n')  return celsius*33/100;
+    return celsius;
+}
+
+function convertFuelLocal(fromVal, fromUnit, toUnit) {
+    var kml;
+    if      (fromUnit==='kml')    kml = fromVal;
+    else if (fromUnit==='mpg_us') kml = fromVal*0.425144;
+    else if (fromUnit==='mpg_uk') kml = fromVal*0.354006;
+    else if (fromUnit==='l100km') kml = 100/fromVal;
+    var result;
+    if      (toUnit==='kml')    result = kml;
+    else if (toUnit==='mpg_us') result = kml/0.425144;
+    else if (toUnit==='mpg_uk') result = kml/0.354006;
+    else if (toUnit==='l100km') result = 100/kml;
+    return isFinite(result) ? result : 0;
+}
+
+function doConvert() {
+    var fromVal  = parseFloat(document.getElementById('conv-from-val').value);
+    var fromUnit = document.getElementById('conv-from-unit').value;
+    var toUnit   = document.getElementById('conv-to-unit').value;
+    if (isNaN(fromVal)) return;
+
+    var result;
+    if (currentCat === 'temp') {
+        result = convertTemperature(fromVal, fromUnit, toUnit);
+    } else if (currentCat === 'fuel') {
+        result = convertFuelLocal(fromVal, fromUnit, toUnit);
+    } else {
+        var factors = conversionFactors[currentCat];
+        if (!factors || !factors[fromUnit] || !factors[toUnit]) return;
+        var base = fromVal * factors[fromUnit];
+        result   = base / factors[toUnit];
+    }
+
+    if (!isFinite(result)) result = 0;
+
+    /* Smart formatting */
+    var formatted;
+    if      (result === 0)  formatted = '0';
+    else if (Math.abs(result) >= 0.001 && Math.abs(result) < 1e12)
+            formatted = parseFloat(result.toPrecision(12)).toString();
+    else    formatted = result.toExponential(6);
+
+    document.getElementById('conv-to-val').value = formatted;
+
+    var fromName = document.getElementById('conv-from-unit').selectedOptions[0].text;
+    var toName   = document.getElementById('conv-to-unit').selectedOptions[0].text;
+    document.getElementById('conv-result').innerText =
+        fromVal + ' ' + fromName + ' = ' + formatted + ' ' + toName;
+}
+
+function doSwap() {
+    var fromUnit = document.getElementById('conv-from-unit');
+    var toUnit   = document.getElementById('conv-to-unit');
+    var fromVal  = document.getElementById('conv-from-val');
+    var toVal    = document.getElementById('conv-to-val');
+
+    var tmpUnit  = fromUnit.value;
+    fromUnit.value = toUnit.value;
+    toUnit.value   = tmpUnit;
+
+    var tmpVal   = fromVal.value;
+    fromVal.value  = toVal.value || '1';
+    toVal.value    = tmpVal;
+
+    doConvert();
+}
+</script>
+</body>
+</html>

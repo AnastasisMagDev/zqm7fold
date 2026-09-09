@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MODULE 01 — Main Menu + Language</title>
+<style>
+/* ── SHARED BASE CSS ── */
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;}
+html{background:#0f172a;min-height:100%;}
+body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#1a1f3a 100%);min-height:100dvh;min-height:100vh;color:white;overflow-x:hidden;}
+body::before,body::after{content:'';position:fixed;border-radius:50%;pointer-events:none;z-index:0;}
+body::before{width:420px;height:420px;background:radial-gradient(circle,rgba(99,102,241,0.09) 0%,transparent 70%);top:-80px;left:-80px;}
+body::after{width:360px;height:360px;background:radial-gradient(circle,rgba(168,85,247,0.07) 0%,transparent 70%);bottom:40px;right:-60px;}
+.is-animating{pointer-events:none!important;}
+
+/* ── Screen transitions ── */
+.screen{display:none;padding:20px;padding-bottom:100px;min-height:100dvh;min-height:100vh;position:relative;z-index:1;contain:layout style;}
+.screen.active{display:block;animation:screenIn 0.5s cubic-bezier(0.2,0.8,0.2,1) both;}
+.screen.active-back{display:block;animation:screenIn 0.5s cubic-bezier(0.2,0.8,0.2,1) both;}
+.screen.exiting{display:block;animation:screenOut 0.5s cubic-bezier(0.2,0.8,0.2,1) both;}
+@keyframes screenIn{from{opacity:0;transform:scale3d(0.96,0.96,1) translateY(10px);}to{opacity:1;transform:scale3d(1,1,1) translateY(0);}}
+@keyframes screenOut{from{opacity:1;transform:scale3d(1,1,1) translateY(0);}to{opacity:0;transform:scale3d(0.96,0.96,1) translateY(-10px);}}
+
+/* ── Header, Logo ── */
+.header{text-align:center;padding:40px 20px 30px;}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:8px;justify-content:center;}
+.logo-icon{width:48px;height:48px;background:linear-gradient(135deg,#6366f1,#a855f7);border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.8rem;color:#fff;box-shadow:0 8px 24px rgba(99,102,241,0.3);position:relative;overflow:hidden;}
+.logo-icon::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(45deg,transparent 30%,rgba(255,255,255,0.1) 50%,transparent 70%);animation:shimmer 3s infinite;}
+@keyframes shimmer{0%{transform:translate(-100%,-100%);}100%{transform:translate(100%,100%);}}
+.logo-text{font-size:2.5rem;font-weight:700;background:linear-gradient(135deg,#fff,#e2e8f0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.logo span{background:linear-gradient(135deg,#6366f1,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.subtitle{color:#94a3b8;font-size:0.95rem;margin-top:5px;}
+
+/* ── Grid ── */
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:15px;max-width:500px;margin:0 auto;}
+
+/* ── Language Cards ── */
+.lang-card{background:rgba(30,41,59,0.6);border:1px solid rgba(71,85,105,0.3);border-radius:20px;padding:30px 20px;text-align:center;cursor:pointer;transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1),background 0.2s ease,box-shadow 0.2s ease;backdrop-filter:blur(10px);position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent;touch-action:manipulation;animation:cardEntry 0.5s cubic-bezier(0.22,1,0.36,1) both;}
+.lang-card:hover{background:rgba(51,65,85,0.7);border-color:rgba(139,92,246,0.4);box-shadow:0 12px 30px rgba(0,0,0,0.3),0 0 0 1px rgba(139,92,246,0.2);}
+.lang-card:active{transform:scale(0.93)!important;transition:transform 0.08s ease!important;}
+.lang-card .flag{font-size:3rem;margin-bottom:10px;display:block;transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1);}
+.lang-card:hover .flag{transform:scale(1.2);}
+.lang-card .name{font-size:1.1rem;font-weight:500;}
+
+/* ── Menu Cards ── */
+.menu-card{border-radius:22px;padding:35px 20px;text-align:center;cursor:pointer;transition:transform 0.28s cubic-bezier(0.34,1.56,0.64,1),box-shadow 0.28s ease,filter 0.2s ease;border:none;position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent;user-select:none;touch-action:manipulation;animation:cardEntry 0.5s cubic-bezier(0.22,1,0.36,1) both;}
+.menu-card::before{content:'';position:absolute;inset:0;background:rgba(255,255,255,0);transition:background 0.2s ease;border-radius:inherit;}
+.menu-card::after{content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,0.14) 50%,transparent 70%);transition:left 0.5s ease;pointer-events:none;}
+.menu-card:hover::after{left:150%;}
+.menu-card:hover{box-shadow:0 22px 50px rgba(0,0,0,0.45),0 0 30px rgba(168,85,247,0.18),0 0 0 1px rgba(255,255,255,0.1)!important;filter:brightness(1.1) saturate(1.15)!important;}
+.menu-card:active{transform:translateY(0) scale(0.94)!important;transition:transform 0.09s cubic-bezier(0.68,-0.55,0.27,1.55)!important;}
+.menu-card .icon{font-size:2.5rem;margin-bottom:15px;display:block;transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1);}
+.menu-card:hover .icon{transform:scale(1.18) rotate(-5deg);}
+.menu-card .icon.icon-img{width:58px;height:58px;object-fit:contain;}
+.menu-card .label{font-size:1.1rem;font-weight:600;}
+
+/* Neon focus effect on main menu */
+.menu-card.neon-focus{filter:brightness(1.25) saturate(1.15)!important;box-shadow:0 22px 50px rgba(0,0,0,0.45),0 0 35px rgba(99,102,241,0.55),0 0 60px rgba(168,85,247,0.35),inset 0 0 15px rgba(255,255,255,0.15)!important;transform:translateY(-8px) scale(1.03)!important;z-index:10;}
+.menu-card.neon-focus::before{background:radial-gradient(circle at 50% 15%,rgba(255,255,255,0.09),transparent 58%);}
+.menu-card.neon-focus::after{animation:premiumMenuShine 1050ms cubic-bezier(0.22,1,0.36,1) both!important;}
+@keyframes premiumMenuShine{0%{opacity:0;transform:rotate(24deg) translateX(-130%);}20%{opacity:0.9;}70%{opacity:0.55;}100%{opacity:0;transform:rotate(24deg) translateX(335%);}}
+@media (prefers-reduced-motion:reduce){.menu-card.neon-focus,.menu-card.neon-focus::after{animation:none!important;}}
+
+/* ── Card colours ── */
+.card-blue{background:linear-gradient(135deg,#3b82f6,#1d4ed8)!important;}
+.card-purple{background:linear-gradient(135deg,#a855f7,#7e22ce)!important;}
+.card-green{background:linear-gradient(135deg,#10b981,#047857)!important;}
+.card-orange{background:linear-gradient(135deg,#f59e0b,#b45309)!important;}
+.card-teal{background:linear-gradient(135deg,#14b8a6,#0f766e)!important;}
+.card-indigo{background:linear-gradient(135deg,#6366f1,#4338ca)!important;}
+.card-cyan{background:linear-gradient(135deg,#06b6d4,#0e7490)!important;}
+.card-rose{background:linear-gradient(135deg,#f43f5e,#be123c)!important;}
+.card-emerald{background:linear-gradient(135deg,#10b981,#047857)!important;}
+.card-amber{background:linear-gradient(135deg,#f59e0b,#b45309)!important;}
+.card-violet{background:linear-gradient(135deg,#8b5cf6,#6d28d9)!important;}
+
+/* ── Animations ── */
+@keyframes cardEntry{from{opacity:0;transform:translateY(20px) scale(0.95);}to{opacity:1;transform:translateY(0) scale(1);}}
+@keyframes rippleAnim{to{transform:scale(4);opacity:0;}}
+.menu-card,.lang-card{animation:cardEntry 0.5s cubic-bezier(0.22,1,0.36,1) both;transform:translateZ(0);}
+.screen.active .grid-2>*:nth-child(1){animation-delay:0.04s;}
+.screen.active .grid-2>*:nth-child(2){animation-delay:0.09s;}
+.screen.active .grid-2>*:nth-child(3){animation-delay:0.14s;}
+.screen.active .grid-2>*:nth-child(4){animation-delay:0.19s;}
+.screen.active .grid-2>*:nth-child(5){animation-delay:0.24s;}
+.screen.active .grid-2>*:nth-child(6){animation-delay:0.29s;}
+.screen.active .grid-2>*:nth-child(7){animation-delay:0.34s;}
+.screen.active .grid-2>*:nth-child(8){animation-delay:0.39s;}
+.screen.active .grid-2>*:nth-child(n+9){animation-delay:0.44s;}
+
+/* ── Ripple ── */
+.ripple-btn{position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent;}
+.ripple-circle{position:absolute;border-radius:50%;background:rgba(255,255,255,0.22);transform:scale(0);animation:rippleAnim 0.55s cubic-bezier(0.4,0,0.2,1) forwards;pointer-events:none;}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:8px;}::-webkit-scrollbar-track{background:rgba(15,23,42,0.3);}::-webkit-scrollbar-thumb{background:rgba(71,85,105,0.5);border-radius:4px;}
+
+/* ── Responsive ── */
+@media(min-width:601px){.grid-2{grid-template-columns:repeat(3,1fr)!important;max-width:700px!important;}.menu-card{padding:30px 15px;}}
+@media(max-width:480px){.screen{padding:15px;padding-bottom:80px;}.menu-card{padding:25px 12px;}.menu-card .icon{font-size:2rem;}.menu-card .icon.icon-img{width:46px;height:46px;}.menu-card .label{font-size:0.95rem;}}
+
+/* ── Light-theme contrast overrides (auto-added) ── */
+body.theme-light .subtitle{color:#475569;}
+body.theme-light .logo-text{background:linear-gradient(135deg,#1e293b,#334155);-webkit-background-clip:text;background-clip:text;}
+body.theme-light .lang-card{background:rgba(30,41,59,0.88);}
+body.theme-light .lang-card:hover{background:rgba(51,65,85,0.92);}
+</style>
+</head>
+<body>
+
+<!-- ═══ LANGUAGE SELECTION SCREEN ════════════════════════════════════════ -->
+<div id="scr-lang" class="screen active">
+    <div class="header">
+        <div class="logo">
+            <div class="logo-icon">∑</div>
+            <div class="logo-text">Multi<span>Calc</span></div>
+        </div>
+        <div class="subtitle" id="lang-select-sub">Select your language / Επιλέξτε γλώσσα</div>
+    </div>
+    <!-- Language cards — populated by JS -->
+    <div class="grid-2" id="lang-list"></div>
+</div>
+
+<!-- ═══ MAIN MENU SCREEN ══════════════════════════════════════════════════ -->
+<div id="scr-menu" class="screen">
+    <div class="header">
+        <div class="logo">
+            <div class="logo-icon">∑</div>
+            <div class="logo-text">Multi<span>Calc</span></div>
+        </div>
+        <div class="subtitle" id="main-subtitle">Επιλέξτε αριθμομηχανή</div>
+    </div>
+    <div class="grid-2" id="main-menu-grid">
+        <div class="menu-card card-blue ripple-btn"    onclick="navTo('scr-calc')">
+            <img class="icon icon-img" src="icons/icon-calc.png" alt=""><div class="label t-m-calc">Αριθμομηχανή</div>
+        </div>
+        <div class="menu-card card-purple ripple-btn"  onclick="navTo('scr-sci')">
+            <img class="icon icon-img" src="icons/icon-sci.png" alt=""><div class="label t-m-sci">Επιστημονική</div>
+        </div>
+        <div class="menu-card card-green ripple-btn"   onclick="navTo('scr-units')">
+            <img class="icon icon-img" src="icons/icon-units.png" alt=""><div class="label t-m-units">Μετατροπέας</div>
+        </div>
+        <div class="menu-card card-orange ripple-btn"  onclick="navTo('scr-physics')">
+            <img class="icon icon-img" src="icons/icon-physics.png" alt=""><div class="label t-m-phys">Φυσική</div>
+        </div>
+        <div class="menu-card card-teal ripple-btn"    onclick="navTo('scr-curr')">
+            <img class="icon icon-img" src="icons/icon-curr.png" alt=""><div class="label t-m-curr">Νόμισμα</div>
+        </div>
+        <div class="menu-card card-indigo ripple-btn"  onclick="navTo('scr-equation')">
+            <img class="icon icon-img" src="icons/icon-equation.png" alt=""><div class="label t-m-equation">Equation Solver</div>
+        </div>
+        <div class="menu-card card-cyan ripple-btn"    onclick="navTo('scr-date')">
+            <img class="icon icon-img" src="icons/icon-date.png" alt=""><div class="label t-m-date">Ημερομηνίες</div>
+        </div>
+        <div class="menu-card card-rose ripple-btn"    onclick="navTo('scr-percent')">
+            <img class="icon icon-img" src="icons/icon-percent.png" alt=""><div class="label t-m-percent">Ποσοστά</div>
+        </div>
+        <div class="menu-card card-emerald ripple-btn" onclick="navTo('scr-bmi')">
+            <img class="icon icon-img" src="icons/icon-bmi.png" alt=""><div class="label t-m-bmi">BMI / Υγεία</div>
+        </div>
+        <div class="menu-card card-amber ripple-btn"   onclick="navTo('scr-themes')">
+            <img class="icon icon-img" src="icons/icon-themes.png" alt=""><div class="label t-m-themes">Θέματα</div>
+        </div>
+        <div class="menu-card card-violet ripple-btn"  onclick="navTo('scr-worldclock')">
+            <span class="icon">🌍</span><div class="label t-m-worldclock">Παγκόσμια Ώρα</div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ── Light-theme contrast guard ─────────────────────────────
+   Detects whether the currently active body background is a
+   light color (any theme, present or future) and toggles
+   body.theme-light so panels/text/back-btn switch to a closed,
+   readable palette. getComputedStyle always normalizes colors
+   to rgb()/rgba() — never hex — so we parse that, not hex.
+   Fully-transparent stops (alpha 0, e.g. body's own unset
+   background-color) are skipped so they don't drag the
+   average down as if they were a real black stop.
+   A MutationObserver on body's style attribute acts as the
+   "signal": whenever ANYTHING changes the body background
+   (theme picker, app boot, future code), every already-loaded
+   module reacts instantly, with no fixed timing assumptions. */
+function mcRelLuminanceRGB(r,g,b){
+    const lin=c=>{c/=255;return c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4);};
+    return 0.2126*lin(r)+0.7152*lin(g)+0.0722*lin(b);
+}
+function mcExtractRGB(str){
+    const out=[];
+    (str.match(/rgba?\([^)]+\)/g)||[]).forEach(m=>{
+        const n=m.match(/[\d.]+/g).map(Number);
+        if(n.length>=4 && n[3]===0) return;
+        out.push([n[0],n[1],n[2]]);
+    });
+    (str.match(/#[0-9a-fA-F]{6}/g)||[]).forEach(h=>{
+        out.push([parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]);
+    });
+    return out;
+}
+function mcCheckThemeLightness(){
+    const cs=getComputedStyle(document.body);
+    const str=(cs.backgroundImage&&cs.backgroundImage!=='none'?cs.backgroundImage:'')+' '+cs.backgroundColor;
+    const colors=mcExtractRGB(str);
+    if(!colors.length){document.body.classList.remove('theme-light');return;}
+    const avg=colors.reduce((s,[r,g,b])=>s+mcRelLuminanceRGB(r,g,b),0)/colors.length;
+    document.body.classList.toggle('theme-light',avg>0.18);
+}
+mcCheckThemeLightness();
+window.addEventListener('load',mcCheckThemeLightness);
+setTimeout(mcCheckThemeLightness,300);
+try{
+    new MutationObserver(mcCheckThemeLightness)
+        .observe(document.body,{attributes:true,attributeFilter:['style','class']});
+}catch(e){}
+
+/* ══════════════════════════════════════════════════
+   MODULE 01: MAIN MENU + LANGUAGE — JAVASCRIPT
+   ══════════════════════════════════════════════════ */
+
+/* ── MultiCalc namespace ── */
+var MultiCalc = {
+    state: {
+        currentLang: 'el',
+        lastNavTime: 0,
+    },
+    data: {},
+    api: {},
+    debug: null
+};
+
+/* ── Language data ── */
+MultiCalc.data.langs = {
+    el: { name: 'Ελληνικά', flag: '🇬🇷' },
+    en: { name: 'English',  flag: '🇬🇧' },
+    es: { name: 'Español',  flag: '🇪🇸' }
+};
+
+/* ── Translations (menu-relevant keys only for standalone) ── */
+MultiCalc.data.translations = {
+    el: {
+        langSelect:'Επιλέξτε γλώσσα', mainSubtitle:'Επιλέξτε αριθμομηχανή',
+        headerSub:'Μαθηματικά • Φυσική • Μονάδες • Νόμισμα', back:'Πίσω', egShort:'π.χ.',
+        calc:'Αριθμομηχανή', sci:'Επιστημονική', units:'Μετατροπέας Μονάδων',
+        physics:'Φυσική', currency:'Νόμισμα', equation:'Επίλυση Εξισώσεων',
+        dateCalc:'Υπολογιστής Ημερομηνιών', percentTools:'Εργαλεία Ποσοστών',
+        bmiHealth:'BMI / Υγεία', themes:'Θέματα', history:'Ιστορικό',
+        solve:'Επίλυση', calculate:'Υπολογισμός', clear:'Καθαρισμός',
+        confirmClear:'Καθαρισμός ιστορικού;', didYouKnow:'Ήξερες ότι',
+        mechanics:'Mechanics', electricity:'Electricity', thermodynamics:'Thermodynamics',
+        optics:'Optics', general:'General', modern:'Σύγχρονη',
+        solveFor:'Λύσε για',
+        percentBasic:'Βασικό %', percentIncrease:'Αύξηση', percentDecrease:'Μείωση',
+        percentDiscount:'Έκπτωση', percentFindpct:'X είναι ?% του Y',
+        percentTip:'Φιλοδώρημα', percentReverse:'Αντίστροφο %', percentVat:'ΦΠΑ',
+        percentLblPercent:'Ποσοστό (X%)', percentLblNumber:'Αριθμός (Y)',
+        percentLblIncreasePct:'Ποσοστό αύξησης (X%)', percentLblDecreasePct:'Ποσοστό μείωσης (X%)',
+        percentLblOriginalPrice:'Αρχική Τιμή (€)', percentLblDiscountPct:'Έκπτωση %',
+        percentLblNumberX:'Αριθμός (X)', percentLblTotalY:'Σύνολο (Y)',
+        percentStepInitial:'Αρχική', percentCardOriginalPrice:'Αρχική τιμή', percentCardSavings:'Εξοικονόμηση',
+        percentErrDiscountRange:'Το ποσοστό έκπτωσης πρέπει να είναι 0–100%',
+        percentErrDivZero:'Δεν γίνεται διαίρεση με το μηδέν',
+        percentLblBillAmount:'Ποσό Λογαριασμού (€)', percentLblTipPct:'Ποσοστό Φιλοδωρήματος (%)',
+        percentLblPeople:'Αριθμός Ατόμων', percentTotalWithTip:'Σύνολο με Φιλοδώρημα', percentPerPerson:'Ανά Άτομο',
+        percentLblFinalPrice:'Τελική Τιμή (μετά την έκπτωση) (€)', percentResultOriginalWas:'Η αρχική τιμή ήταν',
+        percentVatRateLbl:'Συντελεστής ΦΠΑ (%)', percentAddVat:'Προσθήκη ΦΠΑ', percentRemoveVat:'Αφαίρεση ΦΠΑ',
+        percentNetAmount:'Καθαρή Αξία', percentVatAmountLbl:'Ποσό ΦΠΑ', percentGrossAmount:'Συνολική Αξία',
+        weight:'Βάρος (kg)', height:'Ύψος (cm/m)', bmiAge:'Ηλικία', bmiGender:'Φύλο',
+        bmiMale:'Άνδρας', bmiFemale:'Γυναίκα', bmiCatUnder:'Λιποβαρής <18.5',
+        bmiCatNormal:'Κανονικό 18.5–25', bmiCatOver:'Υπέρβαρος 25–30', bmiCatObese:'Παχύσαρκος >30',
+        bmiWeightPh:'π.χ. 70', bmiHeightPh:'π.χ. 175 ή 1.75',
+        bmiActivityLabel:'Επίπεδο Δραστηριότητας', bmiActivityHint:'(για θερμίδες συντήρησης)',
+        bmiActSedentary:'Καθιστική ζωή (καθόλου/ελάχιστη άσκηση)', bmiActLight:'Ελαφριά άσκηση (1–3 ημέρες/εβδ.)',
+        bmiActModerate:'Μέτρια άσκηση (3–5 ημέρες/εβδ.)', bmiActIntense:'Έντονη άσκηση (6–7 ημέρες/εβδ.)',
+        bmiActVeryIntense:'Πολύ έντονη (αθλητής / σωματική εργασία)',
+        bmiCatObese1:'Παχυσαρκία Ι 30–35', bmiCatObese2:'Παχυσαρκία ΙΙ 35–40', bmiCatObese3:'Παχυσαρκία ΙΙΙ >40',
+        bmiTierSevereThin:'Σοβαρή Λιποβαρότητα', bmiTierModThin:'Μέτρια Λιποβαρότητα', bmiTierMildThin:'Ήπια Λιποβαρότητα',
+        bmiTierNormal:'Φυσιολογικό', bmiTierOverweight:'Υπέρβαρος',
+        bmiTierObese1:'Παχυσαρκία Βαθμού Ι', bmiTierObese2:'Παχυσαρκία Βαθμού ΙΙ', bmiTierObese3:'Παχυσαρκία Βαθμού ΙΙΙ',
+        bmiYouthThin:'Λιποβαρής (ηλικιακό)', bmiYouthOverweight:'Υπέρβαρος (ηλικιακό)', bmiYouthObese:'Παχυσαρκία (ηλικιακό)',
+        bmiWhoClassification:'Κατάταξη ΠΟΥ',
+        bmiAccuracyNote:'⚕️ Σημείωση ακρίβειας: Η εκτίμηση βασίζεται σε καθιερωμένους επιστημονικούς τύπους (ΠΟΥ, Mifflin-St Jeor, Deurenberg, Devine) και αντικατοπτρίζει ρεαλιστικές τιμές αναφοράς. Δεν αποτελεί ιατρική διάγνωση. Για ακριβή αξιολόγηση της σύστασης σώματος και εξατομικευμένη καθοδήγηση υγείας, συμβουλευτείτε ιατρό, διαιτολόγο ή άλλον αρμόδιο επαγγελματία υγείας.',
+        bmiYouthBadge:'📊 Παιδικό/εφηβικό ΔΜΣ — όρια CDC growth chart, ηλικίας &amp; φύλου',
+        bmiBmrLabel:'Βασικός Μεταβολισμός', bmiBmrSub:'Mifflin-St Jeor · ημερησίως σε ηρεμία',
+        bmiTdeeLabel:'Θερμίδες Συντήρησης', bmiTdeeSubTemplate:'TDEE · {mult}× δραστηριότητα',
+        bmiBodyFatLabel:'Εκτιμώμενο Ποσοστό Λίπους', bmiBodyFatSub:'Τύπος Deurenberg', bmiYouthVariant:'(εφηβική παραλλαγή)',
+        bmiIdealWeightLabel:'Ιδανικό Βάρος (Devine):', bmiWeightDiffLabel:'Διαφορά από ιδανικό:',
+        bmiDevineFootnoteYouth:'Devine formula (1974) — προσαρμοσμένο σε ηλικιακό εύρος', bmiDevineFootnoteAdult:'Devine formula (1974), ανά φύλο',
+        bmiHealthyRangeLabel:'Υγιές Εύρος Βάρους', bmiHealthyRangeSub:'βάσει ΔΜΣ 18.5–25', bmiHealthyRangeSubYouth:'βάσει ηλικιακών ορίων ΔΜΣ',
+        bmiSeniorNoteLabel:'ℹ️ Γηριατρική σημείωση (65+ ετών):',
+        bmiSeniorNoteBody:'Ερευνητικά δεδομένα σε ηλικιωμένους πληθυσμούς συσχετίζουν ένα ελαφρώς υψηλότερο ΔΜΣ (περίπου 23–30) με καλύτερη έκβαση υγείας και μεγαλύτερα ενεργειακά αποθέματα σε περίπτωση ασθένειας. Η ταξινόμηση του ΠΟΥ παραπάνω αφορά τον γενικό ενήλικο πληθυσμό — για εξατομικευμένο εύρος-στόχο, συμβουλευτείτε γηρίατρο.',
+        bmiClinicalSigLabel:'Κλινική Σημασία', bmiActionPlanLabel:'Σχέδιο Δράσης',
+        bmiHistoryTitle:'Ιστορικό Βάρους', bmiLogWeightBtn:'Καταγραφή Βάρους', bmiHistoryEmpty:'Δεν υπάρχουν ακόμη καταχωρήσεις.',
+        bmiHistoryClear:'Καθαρισμός Ιστορικού', bmiHistoryConfirmClear:'Διαγραφή όλου του ιστορικού βάρους;',
+        bmiHistoryChangeSince:'Μεταβολή από την πρώτη καταχώρηση',
+        bmiWaistLabel:'Περίμετρος Μέσης (cm)', bmiHipLabel:'Περίμετρος Ισχίων (cm)', bmiWaistOptional:'(προαιρετικό)',
+        bmiWhrLabel:'Αναλογία Μέσης-Ισχίου (WHR)', bmiWaistRiskLabel:'Κίνδυνος βάσει Περιμέτρου Μέσης', bmiWhrRiskLabel:'Κίνδυνος βάσει WHR',
+        bmiRiskLow:'Χαμηλός', bmiRiskIncreased:'Αυξημένος', bmiRiskHigh:'Υψηλός', bmiWhoWaistNote:'Όρια ΠΟΥ',
+        bmiPersistentDisclaimer:'⚕️ Ενημερωτικό εργαλείο — δεν αντικαθιστά ιατρική συμβουλή.',
+        bmiRiskSevereThin:'Σοβαρός κίνδυνος: ανοσοκαταστολή, αρρυθμίες, οστεοπόρωση, ορμονικές διαταραχές. Συνιστάται άμεση ιατρική αξιολόγηση.',
+        bmiPlanSevereThinM:'<b>Διατροφή:</b> Ιατρικά καθοδηγούμενος θερμιδικός στόχος, πρωτεΐνη 1.6–2 g/kg. <b>Άσκηση:</b> Μόνο κατόπιν ιατρικής έγκρισης.',
+        bmiPlanSevereThinF:'<b>Διατροφή:</b> Ιατρικά καθοδηγούμενος θερμιδικός στόχος, σίδηρος &amp; ασβέστιο. <b>Άσκηση:</b> Μόνο κατόπιν ιατρικής έγκρισης.',
+        bmiRiskModThin:'Αυξημένος κίνδυνος αναιμίας, εξασθενημένου ανοσοποιητικού και οστεοπόρωσης.',
+        bmiPlanModThinM:'<b>Διατροφή:</b> Θερμιδικό πλεόνασμα ~300–500 kcal/ημέρα, υψηλή πρωτεΐνη. <b>Άσκηση:</b> Προπόνηση δύναμης 2–3×/εβδ.',
+        bmiPlanModThinF:'<b>Διατροφή:</b> Θερμιδικό πλεόνασμα, σίδηρος &amp; ασβέστιο. <b>Άσκηση:</b> Ελαφριά προπόνηση δύναμης 2×/εβδ.',
+        bmiRiskMildThin:'Ήπιος κίνδυνος: πιθανή ανεπάρκεια θρεπτικών συστατικών, μειωμένη οστική πυκνότητα.',
+        bmiPlanMildThinM:'<b>Διατροφή:</b> Πυκνά σε θρεπτικά συστατικά γεύματα. <b>Άσκηση:</b> Προπόνηση δύναμης, μέτρια ένταση.',
+        bmiPlanMildThinF:'<b>Διατροφή:</b> Ασβέστιο, σίδηρος, πρωτεΐνη σε κάθε γεύμα. <b>Άσκηση:</b> Ήπια προπόνηση δύναμης.',
+        bmiRiskNormal:'Χαμηλός κίνδυνος για χρόνια νοσήματα σχετιζόμενα με το βάρος, υπό την προϋπόθεση ισορροπημένου τρόπου ζωής.',
+        bmiPlanNormalM:'<b>Διατροφή:</b> Ισορροπημένα γεύματα, διατήρηση ενεργειακής ισορροπίας. <b>Άσκηση:</b> 150+ λεπτά/εβδ. αερόβια + δύναμη 2×/εβδ.',
+        bmiPlanNormalF:'<b>Διατροφή:</b> Ισορροπημένα γεύματα, επαρκές ασβέστιο. <b>Άσκηση:</b> 150+ λεπτά/εβδ. αερόβια + δύναμη 2×/εβδ.',
+        bmiRiskOverweight:'Αυξημένος κίνδυνος προ-διαβήτη, υπέρτασης και δυσλιπιδαιμίας.',
+        bmiPlanOverweightM:'<b>Διατροφή:</b> Έλλειμμα ~300–500 kcal/ημέρα, μείωση επεξεργασμένων τροφών. <b>Άσκηση:</b> 200–250 λεπτά/εβδ. αερόβια + δύναμη.',
+        bmiPlanOverweightF:'<b>Διατροφή:</b> Έλλειμμα ~300–500 kcal/ημέρα, μείωση ζάχαρης. <b>Άσκηση:</b> 200–250 λεπτά/εβδ. αερόβια + δύναμη.',
+        bmiRiskObese1:'Σημαντικά αυξημένος κίνδυνος διαβήτη τύπου 2, καρδιαγγειακής νόσου, άπνοιας ύπνου. Συνιστάται παρακολούθηση από ιατρό.',
+        bmiPlanObese1M:'<b>Διατροφή:</b> Δομημένο πρόγραμμα με ιατρική/διαιτολογική καθοδήγηση. <b>Άσκηση:</b> Σταδιακή αύξηση, ξεκινώντας με χαμηλή κρούση.',
+        bmiPlanObese1F:'<b>Διατροφή:</b> Δομημένο πρόγραμμα με ιατρική/διαιτολογική καθοδήγηση. <b>Άσκηση:</b> Σταδιακή αύξηση, χαμηλή κρούση αρχικά.',
+        bmiRiskObese2:'Υψηλός κίνδυνος σοβαρών επιπλοκών (καρδιαγγειακά, διαβήτης, αναπνευστικά). Συνιστάται στενή ιατρική παρακολούθηση.',
+        bmiPlanObese2:'<b>Διατροφή/Άσκηση:</b> Να σχεδιαστούν αποκλειστικά από ιατρό/διαιτολόγο· πιθανή αξιολόγηση για φαρμακευτική ή χειρουργική επιλογή.',
+        bmiRiskObese3:'Πολύ υψηλός κίνδυνος απειλητικών για τη ζωή επιπλοκών. Απαιτείται άμεση, εξειδικευμένη ιατρική φροντίδα.',
+        bmiPlanObese3:'<b>Σημαντικό:</b> Αυτό το επίπεδο απαιτεί εξατομικευμένη ιατρική διαχείριση. Συμβουλευτείτε ιατρό άμεσα για πλήρη αξιολόγηση.',
+        dateFrom:'Από Ημερομηνία', dateTo:'Έως Ημερομηνία', days:'ημέρες',
+        holidaysInRange:'Αργίες στο διάστημα', quickExamples:'Γρήγορα παραδείγματα',
+        dateToolRange:'Διαφορά Ημερομηνιών', dateToolCountdown:'Αντίστροφη Μέτρηση',
+        dateToolAddsub:'Πρόσθεση/Αφαίρεση', dateToolWorkdays:'Εργάσιμες Ημέρες', dateToolAge:'Ηλικία',
+        dateTargetDateTime:'Ημερομηνία & Ώρα Στόχος', dateCountdownPast:'Η ημερομηνία-στόχος έχει περάσει!',
+        dateUnitDays:'Ημέρες', dateUnitHours:'Ώρες', dateUnitMinutes:'Λεπτά', dateUnitSeconds:'Δευτ.',
+        dateStartDate:'Αρχική Ημερομηνία', dateDaysToAddSub:'Ημέρες (+ ή −)', dateResultLabel:'Αποτέλεσμα',
+        dateHolidaysShort:'Αργίες', dateWeekendsShort:'Σαββατοκύριακα', dateWorkdaysShort:'Εργάσιμες',
+        dateBirthDate:'Ημερομηνία Γέννησης', dateAgeYears:'χρόνια', dateAgeMonths:'μήνες',
+        dateAgeFuture:'Η ημερομηνία γέννησης είναι στο μέλλον', dateTotalDaysLived:'Σύνολο ημερών ζωής',
+        dateCdMeasured:'πραγματικό', dateCdResolution:'περιορ. ανάλυσης', dateCdSynthetic:'υπολογισμένο',
+        eqLinear:'Γραμμική', eqQuadratic:'Τετραγωνική', eqCubic:'Κυβική',
+        eqAbsolute:'|Απόλυτη|', eqRational:'Ρητή', eqInequality:'Ανισότητα',
+        eqSystem2:'Σύστημα 2×2', eqSystem3:'Σύστημα 3×3', eqTrig:'Τριγωνομετρική',
+        eqExp:'Εκθετική', eqLog:'Λογαριθμική', eqPoly:'Πολυωνυμική',
+        from:'Από', to:'Προς', convert:'Μετατροπή', amount:'Ποσό',
+        length:'Μήκος', area:'Επιφάνεια', volume:'Όγκος', mass:'Μάζα',
+        temperature:'Θερμοκρασία', speed:'Ταχύτητα', time:'Χρόνος',
+        energy:'Ενέργεια', pressure:'Πίεση', dataStorage:'Αποθήκευση',
+        angle:'Γωνία', frequency:'Συχνότητα', force:'Δύναμη', power:'Ισχύς',
+        fuelEconomy:'Κατανάλωση Καυσίμου', acceleration:'Επιτάχυνση',
+        dataTransfer:'Μεταφορά Δεδομένων', flowRate:'Παροχή', viscosity:'Ιξώδες',
+        illuminance:'Φωτισμός', radiationDose:'Δόση Ακτινοβολίας',
+        magFlux:'Μαγν. Ροή', magDensity:'Πυκν. Ροής', magField:'Μαγν. Πεδίο',
+        magMMF:'Μαγν. Δύναμη', luminance:'Φωτεινότητα', lumFlux:'Φωτεινή Ροή',
+        lumIntensity:'Ένταση Φωτός', backToUnits:'Πίσω στις Μονάδες',
+        eqLabelLinear:'Γραμμική · π.χ. <em>2x + 4 = 10</em>',
+        worldClock:'Παγκόσμια Ώρα',
+    },
+    en: {
+        langSelect:'Select your language', mainSubtitle:'Select calculator',
+        headerSub:'Math • Physics • Units • Currency', back:'Back', egShort:'e.g.',
+        calc:'Calculator', sci:'Scientific', units:'Unit Converter',
+        physics:'Physics', currency:'Currency', equation:'Equation Solver',
+        dateCalc:'Date Calculator', percentTools:'Percentage Tools',
+        bmiHealth:'BMI / Health', themes:'Themes', history:'History',
+        solve:'Solve', calculate:'Calculate', clear:'Clear',
+        confirmClear:'Clear all history?', didYouKnow:'Did you know',
+        mechanics:'Mechanics', electricity:'Electricity', thermodynamics:'Thermodynamics',
+        optics:'Optics', general:'General', modern:'Modern',
+        solveFor:'Solve For',
+        percentBasic:'Basic %', percentIncrease:'Increase', percentDecrease:'Decrease',
+        percentDiscount:'Discount', percentFindpct:'X is ?% of Y',
+        percentTip:'Tip', percentReverse:'Reverse %', percentVat:'VAT',
+        percentLblPercent:'Percentage (X%)', percentLblNumber:'Number (Y)',
+        percentLblIncreasePct:'Increase percentage (X%)', percentLblDecreasePct:'Decrease percentage (X%)',
+        percentLblOriginalPrice:'Original Price (€)', percentLblDiscountPct:'Discount %',
+        percentLblNumberX:'Number (X)', percentLblTotalY:'Total (Y)',
+        percentStepInitial:'Initial', percentCardOriginalPrice:'Original price', percentCardSavings:'Savings',
+        percentErrDiscountRange:'The discount percentage must be between 0 and 100%',
+        percentErrDivZero:'Cannot divide by zero',
+        percentLblBillAmount:'Bill Amount (€)', percentLblTipPct:'Tip Percentage (%)',
+        percentLblPeople:'Number of People', percentTotalWithTip:'Total with Tip', percentPerPerson:'Per Person',
+        percentLblFinalPrice:'Final Price (after discount) (€)', percentResultOriginalWas:'The original price was',
+        percentVatRateLbl:'VAT Rate (%)', percentAddVat:'Add VAT', percentRemoveVat:'Remove VAT',
+        percentNetAmount:'Net Amount', percentVatAmountLbl:'VAT Amount', percentGrossAmount:'Total Amount',
+        weight:'Weight (kg)', height:'Height (cm/m)', bmiAge:'Age', bmiGender:'Gender',
+        bmiMale:'Male', bmiFemale:'Female', bmiCatUnder:'Underweight <18.5',
+        bmiCatNormal:'Normal 18.5–25', bmiCatOver:'Overweight 25–30', bmiCatObese:'Obese >30',
+        bmiWeightPh:'e.g. 70', bmiHeightPh:'e.g. 175 or 1.75',
+        bmiActivityLabel:'Activity Level', bmiActivityHint:'(for maintenance calories)',
+        bmiActSedentary:'Sedentary (little/no exercise)', bmiActLight:'Light exercise (1–3 days/week)',
+        bmiActModerate:'Moderate exercise (3–5 days/week)', bmiActIntense:'Intense exercise (6–7 days/week)',
+        bmiActVeryIntense:'Very intense (athlete / physical job)',
+        bmiCatObese1:'Obesity I 30–35', bmiCatObese2:'Obesity II 35–40', bmiCatObese3:'Obesity III >40',
+        bmiTierSevereThin:'Severe Underweight', bmiTierModThin:'Moderate Underweight', bmiTierMildThin:'Mild Underweight',
+        bmiTierNormal:'Normal', bmiTierOverweight:'Overweight',
+        bmiTierObese1:'Obesity Class I', bmiTierObese2:'Obesity Class II', bmiTierObese3:'Obesity Class III',
+        bmiYouthThin:'Underweight (age-adjusted)', bmiYouthOverweight:'Overweight (age-adjusted)', bmiYouthObese:'Obesity (age-adjusted)',
+        bmiWhoClassification:'WHO classification',
+        bmiAccuracyNote:'⚕️ Accuracy note: This estimate is based on established scientific formulas (WHO, Mifflin-St Jeor, Deurenberg, Devine) and reflects realistic reference values. It is not a medical diagnosis. For an accurate body-composition assessment and personalized health guidance, consult a physician, dietitian, or other qualified healthcare professional.',
+        bmiYouthBadge:'📊 Child/adolescent BMI — CDC growth-chart cutoffs, by age &amp; sex',
+        bmiBmrLabel:'Basal Metabolic Rate', bmiBmrSub:'Mifflin-St Jeor · daily at rest',
+        bmiTdeeLabel:'Maintenance Calories', bmiTdeeSubTemplate:'TDEE · {mult}× activity',
+        bmiBodyFatLabel:'Estimated Body Fat %', bmiBodyFatSub:'Deurenberg formula', bmiYouthVariant:'(youth variant)',
+        bmiIdealWeightLabel:'Ideal Weight (Devine):', bmiWeightDiffLabel:'Difference from ideal:',
+        bmiDevineFootnoteYouth:'Devine formula (1974) — adjusted to age range', bmiDevineFootnoteAdult:'Devine formula (1974), by sex',
+        bmiHealthyRangeLabel:'Healthy Weight Range', bmiHealthyRangeSub:'based on BMI 18.5–25', bmiHealthyRangeSubYouth:'based on age-specific BMI cutoffs',
+        bmiSeniorNoteLabel:'ℹ️ Geriatric note (age 65+):',
+        bmiSeniorNoteBody:'Research in older populations associates a slightly higher BMI (roughly 23–30) with better health outcomes and greater energy reserves in case of illness. The WHO classification above applies to the general adult population — for a personalized target range, consult a geriatrician.',
+        bmiClinicalSigLabel:'Clinical Significance', bmiActionPlanLabel:'Action Plan',
+        bmiHistoryTitle:'Weight History', bmiLogWeightBtn:'Log Weight', bmiHistoryEmpty:'No entries yet.',
+        bmiHistoryClear:'Clear History', bmiHistoryConfirmClear:'Delete all weight history?',
+        bmiHistoryChangeSince:'Change since first entry',
+        bmiWaistLabel:'Waist Circumference (cm)', bmiHipLabel:'Hip Circumference (cm)', bmiWaistOptional:'(optional)',
+        bmiWhrLabel:'Waist-to-Hip Ratio (WHR)', bmiWaistRiskLabel:'Waist-Circumference Risk', bmiWhrRiskLabel:'WHR Risk',
+        bmiRiskLow:'Low', bmiRiskIncreased:'Increased', bmiRiskHigh:'High', bmiWhoWaistNote:'WHO cutoffs',
+        bmiPersistentDisclaimer:'⚕️ Informational tool — not a substitute for medical advice.',
+        bmiRiskSevereThin:'Serious risk: immune suppression, arrhythmias, osteoporosis, hormonal disturbances. Immediate medical evaluation is recommended.',
+        bmiPlanSevereThinM:'<b>Diet:</b> Medically-guided calorie target, protein 1.6–2 g/kg. <b>Exercise:</b> Only with medical clearance.',
+        bmiPlanSevereThinF:'<b>Diet:</b> Medically-guided calorie target, iron &amp; calcium. <b>Exercise:</b> Only with medical clearance.',
+        bmiRiskModThin:'Increased risk of anemia, weakened immune function, and osteoporosis.',
+        bmiPlanModThinM:'<b>Diet:</b> Calorie surplus of ~300–500 kcal/day, high protein. <b>Exercise:</b> Strength training 2–3×/week.',
+        bmiPlanModThinF:'<b>Diet:</b> Calorie surplus, iron &amp; calcium. <b>Exercise:</b> Light strength training 2×/week.',
+        bmiRiskMildThin:'Mild risk: possible nutrient deficiencies, reduced bone density.',
+        bmiPlanMildThinM:'<b>Diet:</b> Nutrient-dense meals. <b>Exercise:</b> Strength training, moderate intensity.',
+        bmiPlanMildThinF:'<b>Diet:</b> Calcium, iron, protein at every meal. <b>Exercise:</b> Light strength training.',
+        bmiRiskNormal:'Low risk of weight-related chronic disease, provided a balanced lifestyle is maintained.',
+        bmiPlanNormalM:'<b>Diet:</b> Balanced meals, maintain energy balance. <b>Exercise:</b> 150+ min/week aerobic + strength 2×/week.',
+        bmiPlanNormalF:'<b>Diet:</b> Balanced meals, adequate calcium. <b>Exercise:</b> 150+ min/week aerobic + strength 2×/week.',
+        bmiRiskOverweight:'Increased risk of prediabetes, hypertension, and dyslipidemia.',
+        bmiPlanOverweightM:'<b>Diet:</b> Deficit of ~300–500 kcal/day, reduce processed foods. <b>Exercise:</b> 200–250 min/week aerobic + strength.',
+        bmiPlanOverweightF:'<b>Diet:</b> Deficit of ~300–500 kcal/day, reduce sugar. <b>Exercise:</b> 200–250 min/week aerobic + strength.',
+        bmiRiskObese1:'Significantly increased risk of type 2 diabetes, cardiovascular disease, sleep apnea. Medical follow-up is recommended.',
+        bmiPlanObese1M:'<b>Diet:</b> Structured program with medical/dietitian guidance. <b>Exercise:</b> Gradual increase, starting with low-impact activity.',
+        bmiPlanObese1F:'<b>Diet:</b> Structured program with medical/dietitian guidance. <b>Exercise:</b> Gradual increase, low-impact activity at first.',
+        bmiRiskObese2:'High risk of serious complications (cardiovascular, diabetes, respiratory). Close medical follow-up is recommended.',
+        bmiPlanObese2:'<b>Diet/Exercise:</b> To be planned exclusively by a physician/dietitian; possible evaluation for medication or surgical options.',
+        bmiRiskObese3:'Very high risk of life-threatening complications. Immediate, specialized medical care is required.',
+        bmiPlanObese3:'<b>Important:</b> This level requires individualized medical management. Consult a physician immediately for a full evaluation.',
+        dateFrom:'From Date', dateTo:'To Date', days:'days',
+        holidaysInRange:'Holidays in range', quickExamples:'Quick examples',
+        dateToolRange:'Date Difference', dateToolCountdown:'Countdown',
+        dateToolAddsub:'Add/Subtract', dateToolWorkdays:'Business Days', dateToolAge:'Age',
+        dateTargetDateTime:'Target Date & Time', dateCountdownPast:'Target date has passed!',
+        dateUnitDays:'Days', dateUnitHours:'Hours', dateUnitMinutes:'Minutes', dateUnitSeconds:'Sec',
+        dateStartDate:'Start Date', dateDaysToAddSub:'Days (+ or −)', dateResultLabel:'Result',
+        dateHolidaysShort:'Holidays', dateWeekendsShort:'Weekends', dateWorkdaysShort:'Business days',
+        dateBirthDate:'Date of Birth', dateAgeYears:'years', dateAgeMonths:'months',
+        dateAgeFuture:'Date of birth is in the future', dateTotalDaysLived:'Total days lived',
+        dateCdMeasured:'real', dateCdResolution:'resolution-limited', dateCdSynthetic:'computed',
+        eqLinear:'Linear', eqQuadratic:'Quadratic', eqCubic:'Cubic',
+        eqAbsolute:'|Absolute|', eqRational:'Rational', eqInequality:'Inequality',
+        eqSystem2:'System 2×2', eqSystem3:'System 3×3', eqTrig:'Trigonometric',
+        eqExp:'Exponential', eqLog:'Logarithmic', eqPoly:'Polynomial',
+        from:'From', to:'To', convert:'Convert', amount:'Amount',
+        length:'Length', area:'Area', volume:'Volume', mass:'Mass',
+        temperature:'Temperature', speed:'Speed', time:'Time',
+        energy:'Energy', pressure:'Pressure', dataStorage:'Data Storage',
+        angle:'Angle', frequency:'Frequency', force:'Force', power:'Power',
+        fuelEconomy:'Fuel Economy', acceleration:'Acceleration',
+        dataTransfer:'Data Transfer', flowRate:'Flow Rate', viscosity:'Viscosity',
+        illuminance:'Illuminance', radiationDose:'Radiation Dose',
+        magFlux:'Magnetic Flux', magDensity:'Flux Density', magField:'Mag. Field',
+        magMMF:'Magnetomotive Force', luminance:'Luminance', lumFlux:'Luminous Flux',
+        lumIntensity:'Luminous Intensity', backToUnits:'Back to Units',
+        eqLabelLinear:'Linear · e.g. <em>2x + 4 = 10</em>',
+        worldClock:'World Clock',
+    },
+    es: {
+        langSelect:'Selecciona tu idioma', mainSubtitle:'Selecciona calculadora',
+        headerSub:'Matemáticas • Física • Unidades • Moneda', back:'Volver', egShort:'p.ej.',
+        calc:'Calculadora', sci:'Científica', units:'Conversor de Unidades',
+        physics:'Física', currency:'Moneda', equation:'Solucionador de Ecuaciones',
+        dateCalc:'Calculadora de Fechas', percentTools:'Herramientas de Porcentaje',
+        bmiHealth:'IMC / Salud', themes:'Temas', history:'Historial',
+        solve:'Resolver', calculate:'Calcular', clear:'Limpiar',
+        confirmClear:'¿Borrar todo el historial?', didYouKnow:'¿Sabías que',
+        mechanics:'Mecánica', electricity:'Electricidad', thermodynamics:'Termodinámica',
+        optics:'Óptica', general:'General', modern:'Física Moderna',
+        solveFor:'Calcular para',
+        percentBasic:'% Básico', percentIncrease:'Aumento', percentDecrease:'Disminución',
+        percentDiscount:'Descuento', percentFindpct:'X es ?% de Y',
+        percentTip:'Propina', percentReverse:'% Inverso', percentVat:'IVA',
+        percentLblPercent:'Porcentaje (X%)', percentLblNumber:'Número (Y)',
+        percentLblIncreasePct:'Porcentaje de aumento (X%)', percentLblDecreasePct:'Porcentaje de disminución (X%)',
+        percentLblOriginalPrice:'Precio Original (€)', percentLblDiscountPct:'Descuento %',
+        percentLblNumberX:'Número (X)', percentLblTotalY:'Total (Y)',
+        percentStepInitial:'Inicial', percentCardOriginalPrice:'Precio original', percentCardSavings:'Ahorro',
+        percentErrDiscountRange:'El porcentaje de descuento debe estar entre 0 y 100%',
+        percentErrDivZero:'No se puede dividir entre cero',
+        percentLblBillAmount:'Importe de la Cuenta (€)', percentLblTipPct:'Porcentaje de Propina (%)',
+        percentLblPeople:'Número de Personas', percentTotalWithTip:'Total con Propina', percentPerPerson:'Por Persona',
+        percentLblFinalPrice:'Precio Final (después del descuento) (€)', percentResultOriginalWas:'El precio original era',
+        percentVatRateLbl:'Tasa de IVA (%)', percentAddVat:'Añadir IVA', percentRemoveVat:'Quitar IVA',
+        percentNetAmount:'Importe Neto', percentVatAmountLbl:'Importe de IVA', percentGrossAmount:'Importe Total',
+        weight:'Peso (kg)', height:'Altura (cm/m)', bmiAge:'Edad', bmiGender:'Género',
+        bmiMale:'Hombre', bmiFemale:'Mujer', bmiCatUnder:'Bajo peso <18.5',
+        bmiCatNormal:'Normal 18.5–25', bmiCatOver:'Sobrepeso 25–30', bmiCatObese:'Obeso >30',
+        bmiWeightPh:'p.ej. 70', bmiHeightPh:'p.ej. 175 o 1.75',
+        bmiActivityLabel:'Nivel de Actividad', bmiActivityHint:'(para calorías de mantenimiento)',
+        bmiActSedentary:'Sedentario (poco o ningún ejercicio)', bmiActLight:'Ejercicio ligero (1–3 días/semana)',
+        bmiActModerate:'Ejercicio moderado (3–5 días/semana)', bmiActIntense:'Ejercicio intenso (6–7 días/semana)',
+        bmiActVeryIntense:'Muy intenso (atleta / trabajo físico)',
+        bmiCatObese1:'Obesidad I 30–35', bmiCatObese2:'Obesidad II 35–40', bmiCatObese3:'Obesidad III >40',
+        bmiTierSevereThin:'Delgadez Severa', bmiTierModThin:'Delgadez Moderada', bmiTierMildThin:'Delgadez Leve',
+        bmiTierNormal:'Normal', bmiTierOverweight:'Sobrepeso',
+        bmiTierObese1:'Obesidad Grado I', bmiTierObese2:'Obesidad Grado II', bmiTierObese3:'Obesidad Grado III',
+        bmiYouthThin:'Bajo peso (según edad)', bmiYouthOverweight:'Sobrepeso (según edad)', bmiYouthObese:'Obesidad (según edad)',
+        bmiWhoClassification:'Clasificación OMS',
+        bmiAccuracyNote:'⚕️ Nota de precisión: Esta estimación se basa en fórmulas científicas establecidas (OMS, Mifflin-St Jeor, Deurenberg, Devine) y refleja valores de referencia realistas. No constituye un diagnóstico médico. Para una evaluación precisa de la composición corporal y orientación de salud personalizada, consulte a un médico, nutricionista u otro profesional de la salud cualificado.',
+        bmiYouthBadge:'📊 IMC infantil/adolescente — puntos de corte CDC growth chart, por edad &amp; sexo',
+        bmiBmrLabel:'Metabolismo Basal', bmiBmrSub:'Mifflin-St Jeor · diario en reposo',
+        bmiTdeeLabel:'Calorías de Mantenimiento', bmiTdeeSubTemplate:'TDEE · actividad ×{mult}',
+        bmiBodyFatLabel:'% de Grasa Corporal Estimado', bmiBodyFatSub:'Fórmula de Deurenberg', bmiYouthVariant:'(variante juvenil)',
+        bmiIdealWeightLabel:'Peso Ideal (Devine):', bmiWeightDiffLabel:'Diferencia respecto al ideal:',
+        bmiDevineFootnoteYouth:'Fórmula de Devine (1974) — ajustada al rango de edad', bmiDevineFootnoteAdult:'Fórmula de Devine (1974), según sexo',
+        bmiHealthyRangeLabel:'Rango de Peso Saludable', bmiHealthyRangeSub:'según IMC 18.5–25', bmiHealthyRangeSubYouth:'según los puntos de corte de IMC por edad',
+        bmiSeniorNoteLabel:'ℹ️ Nota geriátrica (65+ años):',
+        bmiSeniorNoteBody:'Datos de investigación en poblaciones mayores asocian un IMC ligeramente más alto (aproximadamente 23–30) con mejores resultados de salud y mayores reservas energéticas en caso de enfermedad. La clasificación de la OMS anterior se refiere a la población adulta general — para un rango objetivo personalizado, consulte a un geriatra.',
+        bmiClinicalSigLabel:'Importancia Clínica', bmiActionPlanLabel:'Plan de Acción',
+        bmiHistoryTitle:'Historial de Peso', bmiLogWeightBtn:'Registrar Peso', bmiHistoryEmpty:'Aún no hay registros.',
+        bmiHistoryClear:'Borrar Historial', bmiHistoryConfirmClear:'¿Eliminar todo el historial de peso?',
+        bmiHistoryChangeSince:'Cambio desde el primer registro',
+        bmiWaistLabel:'Perímetro de Cintura (cm)', bmiHipLabel:'Perímetro de Cadera (cm)', bmiWaistOptional:'(opcional)',
+        bmiWhrLabel:'Índice Cintura-Cadera (ICC)', bmiWaistRiskLabel:'Riesgo según Perímetro de Cintura', bmiWhrRiskLabel:'Riesgo según ICC',
+        bmiRiskLow:'Bajo', bmiRiskIncreased:'Aumentado', bmiRiskHigh:'Alto', bmiWhoWaistNote:'Puntos de corte OMS',
+        bmiPersistentDisclaimer:'⚕️ Herramienta informativa — no sustituye el consejo médico.',
+        bmiRiskSevereThin:'Riesgo grave: inmunosupresión, arritmias, osteoporosis, alteraciones hormonales. Se recomienda evaluación médica inmediata.',
+        bmiPlanSevereThinM:'<b>Dieta:</b> Objetivo calórico bajo supervisión médica, proteína 1.6–2 g/kg. <b>Ejercicio:</b> Solo con autorización médica.',
+        bmiPlanSevereThinF:'<b>Dieta:</b> Objetivo calórico bajo supervisión médica, hierro y calcio. <b>Ejercicio:</b> Solo con autorización médica.',
+        bmiRiskModThin:'Mayor riesgo de anemia, debilidad del sistema inmunitario y osteoporosis.',
+        bmiPlanModThinM:'<b>Dieta:</b> Superávit calórico de ~300–500 kcal/día, alta en proteína. <b>Ejercicio:</b> Entrenamiento de fuerza 2–3×/semana.',
+        bmiPlanModThinF:'<b>Dieta:</b> Superávit calórico, hierro y calcio. <b>Ejercicio:</b> Entrenamiento de fuerza ligero 2×/semana.',
+        bmiRiskMildThin:'Riesgo leve: posibles carencias nutricionales, menor densidad ósea.',
+        bmiPlanMildThinM:'<b>Dieta:</b> Comidas densas en nutrientes. <b>Ejercicio:</b> Entrenamiento de fuerza, intensidad moderada.',
+        bmiPlanMildThinF:'<b>Dieta:</b> Calcio, hierro y proteína en cada comida. <b>Ejercicio:</b> Entrenamiento de fuerza ligero.',
+        bmiRiskNormal:'Bajo riesgo de enfermedades crónicas relacionadas con el peso, siempre que se mantenga un estilo de vida equilibrado.',
+        bmiPlanNormalM:'<b>Dieta:</b> Comidas equilibradas, mantener el balance energético. <b>Ejercicio:</b> 150+ min/semana aeróbico + fuerza 2×/semana.',
+        bmiPlanNormalF:'<b>Dieta:</b> Comidas equilibradas, calcio suficiente. <b>Ejercicio:</b> 150+ min/semana aeróbico + fuerza 2×/semana.',
+        bmiRiskOverweight:'Mayor riesgo de prediabetes, hipertensión y dislipidemia.',
+        bmiPlanOverweightM:'<b>Dieta:</b> Déficit de ~300–500 kcal/día, reducir alimentos procesados. <b>Ejercicio:</b> 200–250 min/semana aeróbico + fuerza.',
+        bmiPlanOverweightF:'<b>Dieta:</b> Déficit de ~300–500 kcal/día, reducir el azúcar. <b>Ejercicio:</b> 200–250 min/semana aeróbico + fuerza.',
+        bmiRiskObese1:'Riesgo significativamente mayor de diabetes tipo 2, enfermedad cardiovascular y apnea del sueño. Se recomienda seguimiento médico.',
+        bmiPlanObese1M:'<b>Dieta:</b> Programa estructurado con supervisión médica/nutricional. <b>Ejercicio:</b> Aumento gradual, empezando con actividad de bajo impacto.',
+        bmiPlanObese1F:'<b>Dieta:</b> Programa estructurado con supervisión médica/nutricional. <b>Ejercicio:</b> Aumento gradual, actividad de bajo impacto al principio.',
+        bmiRiskObese2:'Alto riesgo de complicaciones graves (cardiovasculares, diabetes, respiratorias). Se recomienda seguimiento médico estrecho.',
+        bmiPlanObese2:'<b>Dieta/Ejercicio:</b> Deben ser planificados exclusivamente por un médico/nutricionista; posible evaluación para opciones farmacológicas o quirúrgicas.',
+        bmiRiskObese3:'Riesgo muy alto de complicaciones potencialmente mortales. Se requiere atención médica especializada inmediata.',
+        bmiPlanObese3:'<b>Importante:</b> Este nivel requiere manejo médico individualizado. Consulte a un médico de inmediato para una evaluación completa.',
+        dateFrom:'Desde Fecha', dateTo:'Hasta Fecha', days:'días',
+        holidaysInRange:'Días festivos en el rango', quickExamples:'Ejemplos rápidos',
+        dateToolRange:'Diferencia de Fechas', dateToolCountdown:'Cuenta Regresiva',
+        dateToolAddsub:'Sumar/Restar', dateToolWorkdays:'Días Laborables', dateToolAge:'Edad',
+        dateTargetDateTime:'Fecha y Hora Objetivo', dateCountdownPast:'¡La fecha objetivo ya pasó!',
+        dateUnitDays:'Días', dateUnitHours:'Horas', dateUnitMinutes:'Minutos', dateUnitSeconds:'Seg',
+        dateStartDate:'Fecha Inicial', dateDaysToAddSub:'Días (+ o −)', dateResultLabel:'Resultado',
+        dateHolidaysShort:'Festivos', dateWeekendsShort:'Fines de Semana', dateWorkdaysShort:'Días laborables',
+        dateBirthDate:'Fecha de Nacimiento', dateAgeYears:'años', dateAgeMonths:'meses',
+        dateAgeFuture:'La fecha de nacimiento está en el futuro', dateTotalDaysLived:'Total de días vividos',
+        dateCdMeasured:'real', dateCdResolution:'resolución limitada', dateCdSynthetic:'calculado',
+        eqLinear:'Lineal', eqQuadratic:'Cuadrática', eqCubic:'Cúbica',
+        eqAbsolute:'|Valor Abs.|', eqRational:'Racional', eqInequality:'Inecuación',
+        eqSystem2:'Sistema 2×2', eqSystem3:'Sistema 3×3', eqTrig:'Trigonométrica',
+        eqExp:'Exponencial', eqLog:'Logarítmica', eqPoly:'Polinómica',
+        from:'De', to:'A', convert:'Convertir', amount:'Cantidad',
+        length:'Longitud', area:'Área', volume:'Volumen', mass:'Masa',
+        temperature:'Temperatura', speed:'Velocidad', time:'Tiempo',
+        energy:'Energía', pressure:'Presión', dataStorage:'Almacenamiento',
+        angle:'Ángulo', frequency:'Frecuencia', force:'Fuerza', power:'Potencia',
+        fuelEconomy:'Consumo de Combustible', acceleration:'Aceleración',
+        dataTransfer:'Transferencia de Datos', flowRate:'Caudal', viscosity:'Viscosidad',
+        illuminance:'Iluminancia', radiationDose:'Dosis de Radiación',
+        magFlux:'Flujo Magnético', magDensity:'Densidad de Flujo', magField:'Campo Magnético',
+        magMMF:'Fuerza Magnetomotriz', luminance:'Luminancia', lumFlux:'Flujo Luminoso',
+        lumIntensity:'Intensidad Luminosa', backToUnits:'Volver a Unidades',
+        eqLabelLinear:'Lineal · ej. <em>2x + 4 = 10</em>',
+        worldClock:'Hora Mundial',
+    }
+};
+
+/* ── T() translation helper ── */
+function T(key) {
+    var t = MultiCalc.data.translations[MultiCalc.state.currentLang] || MultiCalc.data.translations['en'];
+    var v = t[key] !== undefined ? t[key] : (MultiCalc.data.translations['en'][key] !== undefined ? MultiCalc.data.translations['en'][key] : key);
+    return v;
+}
+
+/* ── applyTranslations() ── */
+function applyTranslations() {
+    var t = MultiCalc.data.translations[MultiCalc.state.currentLang] || MultiCalc.data.translations['en'];
+    var ms = document.getElementById('main-subtitle');
+    if (ms) ms.innerText = t.mainSubtitle;
+    var selectors = {
+        '.t-m-calc':t.calc, '.t-m-sci':t.sci, '.t-m-units':t.units,
+        '.t-m-phys':t.physics, '.t-m-curr':t.currency, '.t-m-equation':t.equation,
+        '.t-m-date':t.dateCalc, '.t-m-percent':t.percentTools,
+        '.t-m-bmi':t.bmiHealth, '.t-m-themes':t.themes, '.t-m-worldclock':t.worldClock
+    };
+    for (var sel in selectors) {
+        var els = document.querySelectorAll(sel);
+        els.forEach(function(el){ el.innerText = selectors[sel]; });
+    }
+    document.querySelectorAll('.t-back').forEach(function(el){ el.innerText = t.back; });
+    document.querySelectorAll('.t-header-sub').forEach(function(el){ el.innerText = t.headerSub; });
+    document.querySelectorAll('.t-history').forEach(function(el){ el.innerText = t.history; });
+}
+
+/* ── navTo() — screen navigation with animation ── */
+function navTo(id, isBack) {
+    isBack = isBack || false;
+    var now = Date.now();
+    if (now - MultiCalc.state.lastNavTime < 400) return;
+    MultiCalc.state.lastNavTime = now;
+    var prev = document.querySelector('.screen.active');
+    var target = document.getElementById(id);
+    if (!target || prev === target) return;
+
+    document.querySelectorAll('.screen').forEach(function(scr){
+        scr.classList.remove('active','active-back','exiting','exiting-back');
+        if (scr !== target && scr !== prev) scr.style.display = 'none';
+    });
+
+    document.body.classList.add('is-animating');
+    var safetyTimer = setTimeout(function(){
+        document.body.classList.remove('is-animating');
+    }, 600);
+
+    if (prev) {
+        prev.classList.add('exiting');
+        if (isBack) prev.classList.add('exiting-back');
+        setTimeout(function(){
+            prev.style.display = 'none';
+            prev.classList.remove('exiting','exiting-back');
+            document.body.classList.remove('is-animating');
+            clearTimeout(safetyTimer);
+        }, 500);
+    } else {
+        document.body.classList.remove('is-animating');
+        clearTimeout(safetyTimer);
+    }
+
+    target.style.display = 'block';
+    target.offsetHeight; // force reflow
+    target.classList.add(isBack ? 'active-back' : 'active');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+
+    /* Start neon on menu screen */
+    if (id === 'scr-menu') {
+        setTimeout(initMainMenuNeonSequence, 400);
+    }
+}
+
+/* ── setLang() ── */
+function setLang(key) {
+    MultiCalc.state.currentLang = key;
+    applyTranslations();
+    navTo('scr-menu');
+    try { localStorage.setItem('multicalc_lang', key); } catch(e) {}
+}
+
+/* ── Build language cards ── */
+function buildLangCards() {
+    var list = document.getElementById('lang-list');
+    if (!list) return;
+    list.innerHTML = '';
+    Object.keys(MultiCalc.data.langs).forEach(function(key) {
+        var lang = MultiCalc.data.langs[key];
+        var card = document.createElement('div');
+        card.className = 'lang-card ripple-btn';
+        card.innerHTML = '<span class="flag">' + lang.flag + '</span><div class="name">' + lang.name + '</div>';
+        card.onclick = function(){ setLang(key); };
+        list.appendChild(card);
+    });
+}
+
+/* ── initMainMenuNeonSequence() ── */
+function initMainMenuNeonSequence() {
+    var grid = document.getElementById('main-menu-grid');
+    if (!grid || grid.dataset.neonSequenceReady === '1') return;
+    grid.dataset.neonSequenceReady = '1';
+    var getCards = function(){ return Array.from(grid.querySelectorAll('.menu-card')); };
+    var order = [], index = 0, timer = null;
+
+    var shuffle = function(arr){
+        var copy = arr.slice();
+        for (var i = copy.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var tmp = copy[i]; copy[i] = copy[j]; copy[j] = tmp;
+        }
+        return copy;
+    };
+
+    var next = function(){
+        var currentCards = getCards();
+        if (!currentCards.length) return;
+        currentCards.forEach(function(c){ c.classList.remove('neon-focus'); });
+        if (!order.length || index >= order.length) { order = shuffle(currentCards); index = 0; }
+        var card = order[index++];
+        if (card && document.body.contains(card)) {
+            card.classList.add('neon-focus');
+            setTimeout(function(){ card.classList.remove('neon-focus'); }, 1120);
+        }
+        var delay = 2200 + Math.floor(Math.random() * 1500);
+        timer = setTimeout(next, delay);
+    };
+
+    document.addEventListener('visibilitychange', function(){
+        if (document.hidden) {
+            if (timer) clearTimeout(timer); timer = null;
+            getCards().forEach(function(c){ c.classList.remove('neon-focus'); });
+        } else if (!timer) {
+            timer = setTimeout(next, 500);
+        }
+    });
+
+    timer = setTimeout(next, 900);
+}
+
+/* ── Ripple effect ── */
+function addRipple(e) {
+    var el = e.currentTarget;
+    var rect = el.getBoundingClientRect();
+    var size = Math.max(rect.width, rect.height) * 1.4;
+    var x = (e.clientX || rect.left + rect.width/2) - rect.left - size/2;
+    var y = (e.clientY || rect.top + rect.height/2) - rect.top - size/2;
+    var ripple = document.createElement('span');
+    ripple.className = 'ripple-circle';
+    ripple.style.cssText = 'width:'+size+'px;height:'+size+'px;left:'+x+'px;top:'+y+'px;';
+    el.appendChild(ripple);
+    setTimeout(function(){ ripple.remove(); }, 600);
+}
+
+function initRipples() {
+    document.querySelectorAll('.ripple-btn').forEach(function(el){
+        el.removeEventListener('click', addRipple);
+        el.addEventListener('click', addRipple, { passive: true });
+    });
+}
+
+/* ── Boot ── */
+document.addEventListener('DOMContentLoaded', function() {
+    /* Restore saved language if any */
+    try {
+        var saved = localStorage.getItem('multicalc_lang');
+        if (saved && MultiCalc.data.langs[saved]) {
+            MultiCalc.state.currentLang = saved;
+        }
+    } catch(e) {}
+
+    /* Build language selection cards */
+    buildLangCards();
+
+    /* Init ripple on all current .ripple-btn */
+    initRipples();
+});
+</script>
+</body>
+</html>

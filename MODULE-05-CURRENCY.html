@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MODULE 05 — Currency Converter</title>
+<style>
+/* ── SHARED BASE CSS ── */
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;}
+html{background:#0f172a;min-height:100%;}
+body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#1a1f3a 100%);min-height:100dvh;min-height:100vh;color:white;overflow-x:hidden;}
+body::before,body::after{content:'';position:fixed;border-radius:50%;pointer-events:none;z-index:0;}
+body::before{width:420px;height:420px;background:radial-gradient(circle,rgba(99,102,241,0.09) 0%,transparent 70%);top:-80px;left:-80px;}
+body::after{width:360px;height:360px;background:radial-gradient(circle,rgba(168,85,247,0.07) 0%,transparent 70%);bottom:40px;right:-60px;}
+.screen{display:none;padding:20px;padding-bottom:170px;min-height:100dvh;min-height:100vh;position:relative;z-index:1;}
+.screen.active{display:block;animation:screenIn 0.5s cubic-bezier(0.2,0.8,0.2,1) both;}
+@keyframes screenIn{from{opacity:0;transform:scale3d(0.96,0.96,1) translateY(10px);}to{opacity:1;transform:scale3d(1,1,1) translateY(0);}}
+.header{text-align:center;padding:40px 20px 20px;}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.logo-icon{width:48px;height:48px;background:linear-gradient(135deg,#6366f1,#a855f7);border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.8rem;color:#fff;box-shadow:0 8px 24px rgba(99,102,241,0.3);position:relative;overflow:hidden;}
+.logo-icon::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(45deg,transparent 30%,rgba(255,255,255,0.1) 50%,transparent 70%);animation:shimmer 3s infinite;}
+@keyframes shimmer{0%{transform:translate(-100%,-100%);}100%{transform:translate(100%,100%);}}
+.logo-text{font-size:2.5rem;font-weight:700;background:linear-gradient(135deg,#fff,#e2e8f0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.logo span{background:linear-gradient(135deg,#6366f1,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.subtitle{color:#94a3b8;font-size:0.95rem;margin-top:5px;}
+.back-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#94a3b8;font-size:0.95rem;padding:10px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;margin-bottom:20px;transition:all 0.2s cubic-bezier(0.34,1.56,0.64,1);}
+.back-btn:hover{color:#e2e8f0;background:rgba(255,255,255,0.1);transform:translateX(-3px);}
+.input-field{width:100%;background:rgba(30,41,59,0.6);border:1px solid rgba(71,85,105,0.3);border-radius:12px;padding:15px;font-size:1rem;color:white;outline:none;transition:border-color 0.2s;}
+.input-field:focus{border-color:#6366f1;}
+::-webkit-scrollbar{width:8px;}::-webkit-scrollbar-track{background:rgba(15,23,42,0.3);}::-webkit-scrollbar-thumb{background:rgba(71,85,105,0.5);border-radius:4px;}
+
+/* ── CUR-6  MODULE CSS (from original lines 9532-9704) ── */
+#scr-curr .converter-container{max-width:440px;margin:0 auto;}
+#scr-curr .input-group{margin-bottom:14px;}
+#scr-curr .input-label{color:#94a3b8;font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:7px;display:block;}
+.curr-trigger{width:100%;background:rgba(30,41,59,0.65);border:1px solid rgba(71,85,105,0.35);border-radius:18px;padding:15px 18px;display:flex;align-items:center;gap:13px;cursor:pointer;text-align:left;color:#fff;transition:border-color .25s,background .25s,transform .2s,box-shadow .25s;}
+.curr-trigger:hover,.curr-trigger:focus-visible{border-color:rgba(99,102,241,.65);background:rgba(30,41,59,.9);transform:translateY(-1px);box-shadow:0 4px 22px rgba(99,102,241,.18);outline:none;}
+.curr-trigger-flag{font-size:1.75rem;line-height:1;flex-shrink:0;}
+.curr-trigger-info{flex:1;min-width:0;}
+.curr-trigger-code{font-size:1.1rem;font-weight:700;color:#f1f5f9;letter-spacing:.04em;}
+.curr-trigger-name{font-size:.75rem;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.curr-trigger-caret{font-size:1.35rem;color:#475569;flex-shrink:0;transition:color .2s,transform .2s;}
+.curr-trigger:hover .curr-trigger-caret{color:#818cf8;transform:translateX(4px);}
+#scr-curr .swap-btn{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border:2px solid rgba(255,255,255,.12);color:#fff;font-size:1.25rem;cursor:pointer;margin:-4px auto 4px;display:flex;align-items:center;justify-content:center;transition:transform .4s cubic-bezier(.34,1.56,.64,1),box-shadow .3s;box-shadow:0 4px 16px rgba(59,130,246,.35);}
+#scr-curr .swap-btn:hover{transform:rotate(180deg) scale(1.14);box-shadow:0 6px 28px rgba(59,130,246,.55);}
+#scr-curr .convert-btn{width:100%;background:linear-gradient(135deg,#6366f1,#a855f7);border:none;border-radius:20px;padding:17px;font-size:1.08rem;font-weight:700;color:#fff;cursor:pointer;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:9px;transition:background .3s,box-shadow .3s,transform .2s;box-shadow:0 4px 18px rgba(99,102,241,.3);}
+#scr-curr .convert-btn:hover{background:linear-gradient(135deg,#7c3aed,#c026d3);box-shadow:0 8px 30px rgba(99,102,241,.5);transform:translateY(-1px);}
+.result-display{margin-top:16px;background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(168,85,247,0.15));border:1px solid rgba(99,102,241,0.3);border-radius:16px;padding:18px 20px;font-size:1.1rem;font-weight:600;line-height:1.6;min-height:0;display:none;}
+.result-display.show{display:block;}
+
+/* ── PICKER OVERLAY CSS ── */
+.curr-picker-overlay{position:fixed;inset:0;background:rgba(2,6,23,0.62);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);z-index:8500;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s ease;will-change:opacity;}
+.curr-picker-overlay.open{opacity:1;pointer-events:all;}
+.curr-picker-panel{width:100%;max-width:580px;max-height:82dvh;max-height:82vh;background:linear-gradient(170deg,#1e2d4a 0%,#0d1526 100%);border-radius:26px 26px 0 0;border:1px solid rgba(99,102,241,.22);border-bottom:none;box-shadow:0 -16px 60px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.06);display:flex;flex-direction:column;transform:translateY(100%);transition:transform .5s cubic-bezier(.22,1.1,.36,1);will-change:transform;overflow:hidden;}
+.curr-picker-overlay.open .curr-picker-panel{transform:translateY(0);}
+.curr-picker-handle{width:38px;height:4px;background:rgba(255,255,255,.14);border-radius:2px;margin:11px auto 0;flex-shrink:0;}
+.curr-picker-header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px 8px;flex-shrink:0;}
+.curr-picker-title{font-size:1rem;font-weight:700;color:#e2e8f0;letter-spacing:.02em;}
+.curr-picker-close{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.07);border:none;color:#94a3b8;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s,color .2s;}
+.curr-picker-close:hover{background:rgba(239,68,68,.25);color:#f87171;}
+.curr-picker-search-wrap{position:relative;margin:0 14px 10px;flex-shrink:0;}
+.curr-picker-search-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:.9rem;pointer-events:none;opacity:.45;}
+.curr-picker-search{width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(99,102,241,.28);border-radius:14px;padding:11px 16px 11px 38px;font-size:.92rem;color:#f1f5f9;outline:none;transition:border-color .25s,background .25s;}
+.curr-picker-search::placeholder{color:#475569;}
+.curr-picker-search:focus{border-color:rgba(99,102,241,.7);background:rgba(255,255,255,.1);}
+.curr-picker-list{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:0 8px 28px;}
+.curr-picker-list::-webkit-scrollbar{width:3px;}
+.curr-picker-list::-webkit-scrollbar-thumb{background:rgba(99,102,241,.35);border-radius:2px;}
+.curr-picker-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:13px;cursor:pointer;border:1px solid transparent;margin-bottom:2px;transition:background .16s,border-color .16s,transform .16s;position:relative;}
+.curr-picker-item:hover{background:rgba(99,102,241,.1);border-color:rgba(99,102,241,.22);transform:translateX(4px);}
+.curr-picker-item.selected{background:rgba(99,102,241,.16);border-color:rgba(99,102,241,.42);}
+.curr-picker-item.selected::before{content:'';position:absolute;left:0;top:5px;bottom:5px;width:3px;background:linear-gradient(180deg,#6366f1,#a855f7);border-radius:0 3px 3px 0;}
+.curr-picker-item-flag{font-size:1.5rem;flex-shrink:0;width:30px;text-align:center;}
+.curr-picker-item-info{flex:1;min-width:0;}
+.curr-picker-item-code{font-size:.92rem;font-weight:700;color:#e2e8f0;letter-spacing:.04em;}
+.curr-picker-item-name{font-size:.72rem;color:#64748b;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.curr-picker-item.selected .curr-picker-item-code{color:#a5b4fc;}
+.curr-picker-item-check{font-size:.95rem;color:#818cf8;flex-shrink:0;opacity:0;transition:opacity .2s;}
+.curr-picker-item.selected .curr-picker-item-check{opacity:1;}
+.curr-picker-empty{text-align:center;color:#334155;padding:44px 20px;font-size:.88rem;}
+@media(max-width:480px){.screen{padding:15px;padding-bottom:140px;}}
+
+/* ── Light-theme contrast overrides (auto-added) ── */
+body.theme-light .back-btn{background:#1e293b;border-color:#334155;color:#f1f5f9;}
+body.theme-light .back-btn:hover{background:#334155;border-color:#475569;color:#ffffff;}
+body.theme-light .subtitle{color:#475569;}
+body.theme-light .logo-text{background:linear-gradient(135deg,#1e293b,#334155);-webkit-background-clip:text;background-clip:text;}
+body.theme-light .input-field{background:rgba(30,41,59,0.88);}
+body.theme-light .curr-trigger{background:rgba(30,41,59,0.88);}
+body.theme-light .curr-trigger:hover,.curr-trigger:focus-visible{background:rgba(30,41,59,0.92);}
+body.theme-light .curr-picker-overlay{background:rgba(2,6,23,0.88);}
+body.theme-light .result-display{background:rgba(15,23,42,0.88);}
+</style>
+</head>
+<body>
+
+<!-- Currency Picker Overlay -->
+<div id="curr-picker-overlay" class="curr-picker-overlay" role="dialog" aria-modal="true" onclick="if(event.target===this)closeCurrPicker()">
+    <div class="curr-picker-panel" id="curr-picker-panel">
+        <div class="curr-picker-handle" aria-hidden="true"></div>
+        <div class="curr-picker-header">
+            <span class="curr-picker-title" id="curr-picker-title">Επιλογή Νομίσματος</span>
+            <button class="curr-picker-close" aria-label="Close" onclick="closeCurrPicker()">✕</button>
+        </div>
+        <div class="curr-picker-search-wrap">
+            <span class="curr-picker-search-icon" aria-hidden="true">🔍</span>
+            <input type="text" id="curr-picker-search" class="curr-picker-search"
+                   placeholder="Αναζήτηση κωδικού ή ονόματος…" autocomplete="off"
+                   oninput="filterCurrPicker()">
+        </div>
+        <div id="curr-picker-list" class="curr-picker-list" role="listbox"></div>
+    </div>
+</div>
+
+<!-- Currency Screen -->
+<div id="scr-curr" class="screen active">
+    <div class="header">
+        <div class="logo"><div class="logo-icon">∑</div><div class="logo-text">Multi<span>Calc</span></div></div>
+        <div class="subtitle t-header-sub">Μαθηματικά • Φυσική • Μονάδες • Νόμισμα</div>
+    </div>
+    <button class="back-btn" type="button">← <span class="t-back">Πίσω</span></button>
+
+    <div class="converter-container">
+        <div class="input-group">
+            <label class="input-label">Ποσό</label>
+            <input type="number" id="curr-amt" class="input-field"
+                   aria-label="Currency amount" value="1" step="any" min="0"
+                   oninput="convertCurrency()">
+        </div>
+        <div class="input-group">
+            <label class="input-label">Από</label>
+            <button class="curr-trigger" id="curr-from-btn" onclick="openCurrPicker('from')">
+                <span class="curr-trigger-flag" id="from-flag">🇺🇸</span>
+                <div class="curr-trigger-info">
+                    <div class="curr-trigger-code" id="from-code">USD</div>
+                    <div class="curr-trigger-name" id="from-name">US Dollar</div>
+                </div>
+                <span class="curr-trigger-caret">›</span>
+            </button>
+        </div>
+        <button class="swap-btn" aria-label="Swap" onclick="swapCurrencies()">⇅</button>
+        <div class="input-group">
+            <label class="input-label">Προς</label>
+            <button class="curr-trigger" id="curr-to-btn" onclick="openCurrPicker('to')">
+                <span class="curr-trigger-flag" id="to-flag">🇪🇺</span>
+                <div class="curr-trigger-info">
+                    <div class="curr-trigger-code" id="to-code">EUR</div>
+                    <div class="curr-trigger-name" id="to-name">Ευρώ</div>
+                </div>
+                <span class="curr-trigger-caret">›</span>
+            </button>
+        </div>
+        <button class="convert-btn" onclick="convertCurrency()">
+            <span aria-hidden="true">↗️</span> Μετατροπή
+        </button>
+        <div id="result-curr" class="result-display"></div>
+    </div>
+
+    <div class="fun-facts-slot"></div>
+</div>
+
+<script>
+/* ── Light-theme contrast guard ─────────────────────────────
+   Detects whether the currently active body background is a
+   light color (any theme, present or future) and toggles
+   body.theme-light so panels/text/back-btn switch to a closed,
+   readable palette. getComputedStyle always normalizes colors
+   to rgb()/rgba() — never hex — so we parse that, not hex.
+   Fully-transparent stops (alpha 0, e.g. body's own unset
+   background-color) are skipped so they don't drag the
+   average down as if they were a real black stop.
+   A MutationObserver on body's style attribute acts as the
+   "signal": whenever ANYTHING changes the body background
+   (theme picker, app boot, future code), every already-loaded
+   module reacts instantly, with no fixed timing assumptions. */
+function mcRelLuminanceRGB(r,g,b){
+    const lin=c=>{c/=255;return c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4);};
+    return 0.2126*lin(r)+0.7152*lin(g)+0.0722*lin(b);
+}
+function mcExtractRGB(str){
+    const out=[];
+    (str.match(/rgba?\([^)]+\)/g)||[]).forEach(m=>{
+        const n=m.match(/[\d.]+/g).map(Number);
+        if(n.length>=4 && n[3]===0) return;
+        out.push([n[0],n[1],n[2]]);
+    });
+    (str.match(/#[0-9a-fA-F]{6}/g)||[]).forEach(h=>{
+        out.push([parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]);
+    });
+    return out;
+}
+function mcCheckThemeLightness(){
+    const cs=getComputedStyle(document.body);
+    const str=(cs.backgroundImage&&cs.backgroundImage!=='none'?cs.backgroundImage:'')+' '+cs.backgroundColor;
+    const colors=mcExtractRGB(str);
+    if(!colors.length){document.body.classList.remove('theme-light');return;}
+    const avg=colors.reduce((s,[r,g,b])=>s+mcRelLuminanceRGB(r,g,b),0)/colors.length;
+    document.body.classList.toggle('theme-light',avg>0.18);
+}
+mcCheckThemeLightness();
+window.addEventListener('load',mcCheckThemeLightness);
+setTimeout(mcCheckThemeLightness,300);
+try{
+    new MutationObserver(mcCheckThemeLightness)
+        .observe(document.body,{attributes:true,attributeFilter:['style','class']});
+}catch(e){}
+
+/* ── Minimal namespace stub ── */
+var MultiCalc = {
+    state: { currFrom:'USD', currTo:'EUR', liveRates:null, liveRatesFetchedAt:null, liveRatesNextUpdate:null, currentLang:'el' },
+    data:  {}
+};
+
+/* ── CUR-1-A  Currency Flags ── */
+MultiCalc.data.currencyFlags = {
+    USD:'🇺🇸',EUR:'🇪🇺',GBP:'🇬🇧',JPY:'🇯🇵',CHF:'🇨🇭',CAD:'🇨🇦',AUD:'🇦🇺',NZD:'🇳🇿',
+    CNY:'🇨🇳',HKD:'🇭🇰',SGD:'🇸🇬',KRW:'🇰🇷',INR:'🇮🇳',TWD:'🇹🇼',THB:'🇹🇭',MYR:'🇲🇾',
+    IDR:'🇮🇩',PHP:'🇵🇭',VND:'🇻🇳',BDT:'🇧🇩',PKR:'🇵🇰',LKR:'🇱🇰',NPR:'🇳🇵',MMK:'🇲🇲',
+    KHR:'🇰🇭',LAK:'🇱🇦',MNT:'🇲🇳',BND:'🇧🇳',MVR:'🇲🇻',MOP:'🇲🇴',KGS:'🇰🇬',
+    AED:'🇦🇪',SAR:'🇸🇦',QAR:'🇶🇦',KWD:'🇰🇼',BHD:'🇧🇭',OMR:'🇴🇲',JOD:'🇯🇴',
+    ILS:'🇮🇱',EGP:'🇪🇬',MAD:'🇲🇦',TND:'🇹🇳',DZD:'🇩🇿',LBP:'🇱🇧',IRR:'🇮🇷',
+    IQD:'🇮🇶',YER:'🇾🇪',LYD:'🇱🇾',SYP:'🇸🇾',
+    ZAR:'🇿🇦',NGN:'🇳🇬',KES:'🇰🇪',GHS:'🇬🇭',ETB:'🇪🇹',TZS:'🇹🇿',UGX:'🇺🇬',
+    ZMW:'🇿🇲',XOF:'🌍',XAF:'🌍',BWP:'🇧🇼',NAD:'🇳🇦',MUR:'🇲🇺',SCR:'🇸🇨',
+    DJF:'🇩🇯',SOS:'🇸🇴',RWF:'🇷🇼',BIF:'🇧🇮',GMD:'🇬🇲',SZL:'🇸🇿',LSL:'🇱🇸',
+    MGA:'🇲🇬',MZN:'🇲🇿',AOA:'🇦🇴',GNF:'🇬🇳',CDF:'🇨🇩',MDL:'🇲🇩',STN:'🇸🇹',
+    CVE:'🇨🇻',SDG:'🇸🇩',ERN:'🇪🇷',LRD:'🇱🇷',
+    RUB:'🇷🇺',TRY:'🇹🇷',PLN:'🇵🇱',HUF:'🇭🇺',CZK:'🇨🇿',RON:'🇷🇴',BGN:'🇧🇬',
+    NOK:'🇳🇴',SEK:'🇸🇪',DKK:'🇩🇰',ISK:'🇮🇸',HRK:'🇭🇷',RSD:'🇷🇸',BAM:'🇧🇦',
+    MKD:'🇲🇰',ALL:'🇦🇱',UAH:'🇺🇦',AMD:'🇦🇲',AZN:'🇦🇿',BYN:'🇧🇾',KZT:'🇰🇿',
+    UZS:'🇺🇿',TMT:'🇹🇲',TJS:'🇹🇯',GEL:'🇬🇪',
+    BRL:'🇧🇷',MXN:'🇲🇽',ARS:'🇦🇷',CLP:'🇨🇱',COP:'🇨🇴',PEN:'🇵🇪',UYU:'🇺🇾',
+    BOB:'🇧🇴',PYG:'🇵🇾',GTQ:'🇬🇹',DOP:'🇩🇴',CRC:'🇨🇷',JMD:'🇯🇲',TTD:'🇹🇹',
+    HNL:'🇭🇳',NIO:'🇳🇮',PAB:'🇵🇦',BZD:'🇧🇿',GYD:'🇬🇾',SRD:'🇸🇷',HTG:'🇭🇹',
+    BBD:'🇧🇧',AWG:'🇦🇼',XCD:'🇱🇨',BMD:'🇧🇲',KYD:'🇰🇾',BSD:'🇧🇸',
+    FJD:'🇫🇯',PGK:'🇵🇬',WST:'🇼🇸',TOP:'🇹🇴',VUV:'🇻🇺',SBD:'🇸🇧',XPF:'🌏',
+    SHP:'🇸🇭',GIP:'🇬🇮',FKP:'🇫🇰',AFN:'🇦🇫',BTN:'🇧🇹',MRU:'🇲🇷',
+    KMF:'🇰🇲',KPW:'🇰🇵',SVC:'🇸🇻',CUP:'🇨🇺',VES:'🇻🇪',ZWL:'🇿🇼',ANG:'🇨🇼',SLL:'🇸🇱',
+    FOK:'🇫🇴',GGP:'🇬🇬',IMP:'🇮🇲',JEP:'🇯🇪',KID:'🇰🇮',SLE:'🇸🇱',SSP:'🇸🇸',TVD:'🇹🇻',XDR:'🌐'
+};
+
+/* ── CUR-1-B  Currency List ── */
+MultiCalc.data.allCurrencies = [
+    {code:'AED',en:'UAE Dirham',el:'Ντιρχάμ ΗΑΕ'},{code:'AFN',en:'Afghan Afghani',el:'Αφγάνι Αφγανιστάν'},
+    {code:'ALL',en:'Albanian Lek',el:'Λεκ Αλβανίας'},{code:'AMD',en:'Armenian Dram',el:'Ντραμ Αρμενίας'},
+    {code:'ANG',en:'Netherlands Antillean Guilder',el:'Φιορίνι Ολλανδ. Αντιλλών'},{code:'AOA',en:'Angolan Kwanza',el:'Κουάνζα Αγκόλας'},
+    {code:'ARS',en:'Argentine Peso',el:'Πέσο Αργεντινής'},{code:'AUD',en:'Australian Dollar',el:'Δολάριο Αυστραλίας'},
+    {code:'AWG',en:'Aruban Florin',el:'Φιορίνι Αρούμπας'},{code:'AZN',en:'Azerbaijani Manat',el:'Μανάτ Αζερμπαϊτζάν'},
+    {code:'BAM',en:'Bosnia-Herzegovina Mark',el:'Μάρκο Βοσνίας'},{code:'BBD',en:'Barbadian Dollar',el:'Δολάριο Μπαρμπάντος'},
+    {code:'BDT',en:'Bangladeshi Taka',el:'Τάκα Μπαγκλαντές'},{code:'BGN',en:'Bulgarian Lev',el:'Λεβ Βουλγαρίας'},
+    {code:'BHD',en:'Bahraini Dinar',el:'Δηνάριο Μπαχρέιν'},{code:'BIF',en:'Burundian Franc',el:'Φράγκο Μπουρούντι'},
+    {code:'BMD',en:'Bermudan Dollar',el:'Δολάριο Βερμούδων'},{code:'BND',en:'Brunei Dollar',el:'Δολάριο Μπρουνέι'},
+    {code:'BOB',en:'Bolivian Boliviano',el:'Μπολιβιάνο Βολιβίας'},{code:'BRL',en:'Brazilian Real',el:'Ρεάλ Βραζιλίας'},
+    {code:'BSD',en:'Bahamian Dollar',el:'Δολάριο Μπαχαμών'},{code:'BTN',en:'Bhutanese Ngultrum',el:'Νγκούλτρουμ Μπουτάν'},
+    {code:'BWP',en:'Botswanan Pula',el:'Πούλα Μποτσουάνας'},{code:'BYN',en:'Belarusian Ruble',el:'Ρούβλι Λευκορωσίας'},
+    {code:'BZD',en:'Belize Dollar',el:'Δολάριο Μπελίζ'},{code:'CAD',en:'Canadian Dollar',el:'Δολάριο Καναδά'},
+    {code:'CDF',en:'Congolese Franc',el:'Φράγκο Κονγκό'},{code:'CHF',en:'Swiss Franc',el:'Ελβετικό Φράγκο'},
+    {code:'CLP',en:'Chilean Peso',el:'Πέσο Χιλής'},{code:'CNY',en:'Chinese Yuan',el:'Γουάν Κίνας'},
+    {code:'COP',en:'Colombian Peso',el:'Πέσο Κολομβίας'},{code:'CRC',en:'Costa Rican Colón',el:'Κολόν Κόστα Ρίκα'},
+    {code:'CUP',en:'Cuban Peso',el:'Πέσο Κούβας'},{code:'CVE',en:'Cape Verdean Escudo',el:'Εσκούδο Πρασ. Ακρωτηρίου'},
+    {code:'CZK',en:'Czech Koruna',el:'Κορώνα Τσεχίας'},{code:'DJF',en:'Djiboutian Franc',el:'Φράγκο Τζιμπουτί'},
+    {code:'DKK',en:'Danish Krone',el:'Κορώνα Δανίας'},{code:'DOP',en:'Dominican Peso',el:'Πέσο Δομινικανής Δημ.'},
+    {code:'DZD',en:'Algerian Dinar',el:'Δηνάριο Αλγερίας'},{code:'EGP',en:'Egyptian Pound',el:'Λίρα Αιγύπτου'},
+    {code:'ERN',en:'Eritrean Nakfa',el:'Νάκφα Ερυθραίας'},{code:'ETB',en:'Ethiopian Birr',el:'Μπιρ Αιθιοπίας'},
+    {code:'EUR',en:'Euro',el:'Ευρώ'},{code:'FJD',en:'Fijian Dollar',el:'Δολάριο Φίτζι'},
+    {code:'FKP',en:'Falkland Islands Pound',el:'Λίρα Φώκλαντ'},{code:'FOK',en:'Faroese Króna',el:'Κορώνα Νήσων Φερόε'},
+    {code:'GBP',en:'British Pound',el:'Λίρα Αγγλίας'},{code:'GEL',en:'Georgian Lari',el:'Λάρι Γεωργίας'},
+    {code:'GGP',en:'Guernsey Pound',el:'Λίρα Γκέρνσεϊ'},{code:'GHS',en:'Ghanaian Cedi',el:'Σέντι Γκάνας'},
+    {code:'GIP',en:'Gibraltar Pound',el:'Λίρα Γιβραλτάρ'},{code:'GMD',en:'Gambian Dalasi',el:'Νταλάσι Γκάμπιας'},
+    {code:'GNF',en:'Guinean Franc',el:'Φράγκο Γουινέας'},{code:'GTQ',en:'Guatemalan Quetzal',el:'Κετσάλ Γουατεμάλας'},
+    {code:'GYD',en:'Guyanaese Dollar',el:'Δολάριο Γουιάνας'},{code:'HKD',en:'Hong Kong Dollar',el:'Δολάριο Χονγκ Κονγκ'},
+    {code:'HNL',en:'Honduran Lempira',el:'Λεμπίρα Ονδούρας'},{code:'HRK',en:'Croatian Kuna',el:'Κούνα Κροατίας'},
+    {code:'HTG',en:'Haitian Gourde',el:'Γκουρντ Αϊτής'},{code:'HUF',en:'Hungarian Forint',el:'Φιορίνι Ουγγαρίας'},
+    {code:'IDR',en:'Indonesian Rupiah',el:'Ρουπία Ινδονησίας'},{code:'ILS',en:'Israeli New Shekel',el:'Σέκελ Ισραήλ'},
+    {code:'IMP',en:'Isle of Man Pound',el:'Λίρα Νήσου Μαν'},{code:'INR',en:'Indian Rupee',el:'Ρουπία Ινδίας'},
+    {code:'IQD',en:'Iraqi Dinar',el:'Δηνάριο Ιράκ'},{code:'ISK',en:'Icelandic Króna',el:'Κορώνα Ισλανδίας'},
+    {code:'JEP',en:'Jersey Pound',el:'Λίρα Τζέρσεϊ'},{code:'JMD',en:'Jamaican Dollar',el:'Δολάριο Τζαμάικας'},
+    {code:'JOD',en:'Jordanian Dinar',el:'Δηνάριο Ιορδανίας'},{code:'JPY',en:'Japanese Yen',el:'Γιεν Ιαπωνίας'},
+    {code:'KES',en:'Kenyan Shilling',el:'Σελήνι Κένυας'},{code:'KGS',en:'Kyrgystani Som',el:'Σομ Κιργιζίας'},
+    {code:'KHR',en:'Cambodian Riel',el:'Ρίελ Καμπότζης'},{code:'KID',en:'Kiribati Dollar',el:'Δολάριο Κιριμπάτι'},
+    {code:'KMF',en:'Comorian Franc',el:'Φράγκο Κομορών'},{code:'KRW',en:'South Korean Won',el:'Γουόν Νότιας Κορέας'},
+    {code:'KWD',en:'Kuwaiti Dinar',el:'Δηνάριο Κουβέιτ'},{code:'KYD',en:'Cayman Islands Dollar',el:'Δολάριο Νήσων Κέιμαν'},
+    {code:'KZT',en:'Kazakhstani Tenge',el:'Τένγκε Καζακστάν'},{code:'LAK',en:'Laotian Kip',el:'Κιπ Λάος'},
+    {code:'LBP',en:'Lebanese Pound',el:'Λίρα Λιβάνου'},{code:'LKR',en:'Sri Lankan Rupee',el:'Ρουπία Σρι Λάνκα'},
+    {code:'LRD',en:'Liberian Dollar',el:'Δολάριο Λιβερίας'},{code:'LSL',en:'Lesotho Loti',el:'Λότι Λεσότο'},
+    {code:'LYD',en:'Libyan Dinar',el:'Δηνάριο Λιβύης'},{code:'MAD',en:'Moroccan Dirham',el:'Ντιρχάμ Μαρόκου'},
+    {code:'MDL',en:'Moldovan Leu',el:'Λέου Μολδαβίας'},{code:'MGA',en:'Malagasy Ariary',el:'Αριάρι Μαδαγασκάρης'},
+    {code:'MKD',en:'Macedonian Denar',el:'Δηνάριο Β. Μακεδονίας'},{code:'MMK',en:'Myanmar Kyat',el:'Κυάτ Μιανμάρ'},
+    {code:'MNT',en:'Mongolian Tögrög',el:'Τουγκρίκ Μογγολίας'},{code:'MOP',en:'Macanese Pataca',el:'Πατάκα Μακάο'},
+    {code:'MRU',en:'Mauritanian Ouguiya',el:'Ουγκίγια Μαυριτανίας'},{code:'MUR',en:'Mauritian Rupee',el:'Ρουπία Μαυρικίου'},
+    {code:'MVR',en:'Maldivian Rufiyaa',el:'Ρουφίγια Μαλδίβων'},{code:'MWK',en:'Malawian Kwacha',el:'Κουάτσα Μαλάουι'},
+    {code:'MXN',en:'Mexican Peso',el:'Πέσο Μεξικού'},{code:'MYR',en:'Malaysian Ringgit',el:'Ρινγκίτ Μαλαισίας'},
+    {code:'MZN',en:'Mozambican Metical',el:'Μετικάλ Μοζαμβίκης'},{code:'NAD',en:'Namibian Dollar',el:'Δολάριο Ναμίμπιας'},
+    {code:'NGN',en:'Nigerian Naira',el:'Νάιρα Νιγηρίας'},{code:'NIO',en:'Nicaraguan Córdoba',el:'Κόρδοβα Νικαράγουας'},
+    {code:'NOK',en:'Norwegian Krone',el:'Κορώνα Νορβηγίας'},{code:'NPR',en:'Nepalese Rupee',el:'Ρουπία Νεπάλ'},
+    {code:'NZD',en:'New Zealand Dollar',el:'Δολάριο Νέας Ζηλανδίας'},{code:'OMR',en:'Omani Rial',el:'Ριάλ Ομάν'},
+    {code:'PAB',en:'Panamanian Balboa',el:'Μπαλμπόα Παναμά'},{code:'PEN',en:'Peruvian Sol',el:'Σολ Περού'},
+    {code:'PGK',en:'Papua New Guinean Kina',el:'Κίνα Παπούα Ν. Γουινέας'},{code:'PHP',en:'Philippine Peso',el:'Πέσο Φιλιππίνων'},
+    {code:'PKR',en:'Pakistani Rupee',el:'Ρουπία Πακιστάν'},{code:'PLN',en:'Polish Zloty',el:'Ζλότι Πολωνίας'},
+    {code:'PYG',en:'Paraguayan Guarani',el:'Γκουαρανί Παραγουάης'},{code:'QAR',en:'Qatari Rial',el:'Ριάλ Κατάρ'},
+    {code:'RON',en:'Romanian Leu',el:'Λέου Ρουμανίας'},{code:'RSD',en:'Serbian Dinar',el:'Δηνάριο Σερβίας'},
+    {code:'RUB',en:'Russian Ruble',el:'Ρούβλι Ρωσίας'},{code:'RWF',en:'Rwandan Franc',el:'Φράγκο Ρουάντας'},
+    {code:'SAR',en:'Saudi Riyal',el:'Ριάλ Σαουδικής Αραβίας'},{code:'SBD',en:'Solomon Islands Dollar',el:'Δολάριο Νήσων Σολομώντα'},
+    {code:'SCR',en:'Seychellois Rupee',el:'Ρουπία Σεϋχελλών'},{code:'SDG',en:'Sudanese Pound',el:'Λίρα Σουδάν'},
+    {code:'SEK',en:'Swedish Krona',el:'Κορώνα Σουηδίας'},{code:'SGD',en:'Singapore Dollar',el:'Δολάριο Σιγκαπούρης'},
+    {code:'SHP',en:'St. Helena Pound',el:'Λίρα Αγίας Ελένης'},{code:'SLE',en:'Sierra Leonean Leone',el:'Λεόνε Σιέρα Λεόνε'},
+    {code:'SOS',en:'Somali Shilling',el:'Σελήνι Σομαλίας'},{code:'SRD',en:'Surinamese Dollar',el:'Δολάριο Σουρινάμ'},
+    {code:'SSP',en:'South Sudanese Pound',el:'Λίρα Ν. Σουδάν'},{code:'STN',en:'São Tomé Dobra',el:'Ντόμπρα Σάο Τομέ'},
+    {code:'SYP',en:'Syrian Pound',el:'Λίρα Συρίας'},{code:'SZL',en:'Swazi Lilangeni',el:'Λιλανγκένι Εσουατίνι'},
+    {code:'THB',en:'Thai Baht',el:'Μπατ Ταϊλάνδης'},{code:'TJS',en:'Tajikistani Somoni',el:'Σομόνι Τατζικιστάν'},
+    {code:'TMT',en:'Turkmenistani Manat',el:'Μανάτ Τουρκμενιστάν'},{code:'TND',en:'Tunisian Dinar',el:'Δηνάριο Τυνησίας'},
+    {code:'TOP',en:'Tongan Paʻanga',el:'Παάνγκα Τόνγκα'},{code:'TRY',en:'Turkish Lira',el:'Λίρα Τουρκίας'},
+    {code:'TTD',en:'Trinidad & Tobago Dollar',el:'Δολάριο Τρινιντάντ'},{code:'TVD',en:'Tuvaluan Dollar',el:'Δολάριο Τουβαλού'},
+    {code:'TWD',en:'New Taiwan Dollar',el:'Δολάριο Ταϊβάν'},{code:'TZS',en:'Tanzanian Shilling',el:'Σελήνι Τανζανίας'},
+    {code:'UAH',en:'Ukrainian Hryvnia',el:'Χρίβνια Ουκρανίας'},{code:'UGX',en:'Ugandan Shilling',el:'Σελήνι Ουγκάντας'},
+    {code:'USD',en:'US Dollar',el:'Δολάριο ΗΠΑ'},{code:'UYU',en:'Uruguayan Peso',el:'Πέσο Ουρουγουάης'},
+    {code:'UZS',en:'Uzbekistani Som',el:'Σομ Ουζμπεκιστάν'},{code:'VES',en:'Venezuelan Bolívar',el:'Μπολιβάρ Βενεζουέλας'},
+    {code:'VND',en:'Vietnamese Dong',el:'Ντονγκ Βιετνάμ'},{code:'VUV',en:'Vanuatu Vatu',el:'Βατού Βανουάτου'},
+    {code:'WST',en:'Samoan Tala',el:'Τάλα Σαμόα'},{code:'XAF',en:'Central African CFA Franc',el:'Φράγκο CFA (Κεντρική)'},
+    {code:'XCD',en:'East Caribbean Dollar',el:'Δολάριο Ανατ. Καραϊβικής'},{code:'XDR',en:'IMF Special Drawing Rights',el:'Δικαιώματα IMF'},
+    {code:'XOF',en:'West African CFA Franc',el:'Φράγκο CFA (Δυτική)'},{code:'XPF',en:'CFP Franc',el:'Φράγκο CFP'},
+    {code:'YER',en:'Yemeni Rial',el:'Ριάλ Υεμένης'},{code:'ZAR',en:'South African Rand',el:'Ραντ Νότιας Αφρικής'},
+    {code:'ZMW',en:'Zambian Kwacha',el:'Κουάτσα Ζάμπιας'},{code:'ZWL',en:'Zimbabwean Dollar',el:'Δολάριο Ζιμπάμπουε'}
+];
+
+/* ── CUR-1-C  Static USD Fallback Rates ── */
+MultiCalc.data.staticRates = {
+    USD:1,EUR:0.92411,GBP:0.79015,JPY:149.51,CHF:0.90037,CAD:1.3623,AUD:1.5283,NZD:1.6678,
+    CNY:7.24,HKD:7.7841,SGD:1.3473,KRW:1367.5,INR:83.52,TWD:32.095,THB:35.59,MYR:4.712,
+    IDR:15891,PHP:56.2,VND:25191,BDT:110,PKR:277.95,LKR:303,NPR:133,MMK:2100,
+    KHR:4060,LAK:21000,MNT:3450,BND:1.3473,MVR:15.4,MOP:8.042,KGS:89,
+    AED:3.6725,SAR:3.7504,QAR:3.6408,KWD:0.30747,BHD:0.37701,OMR:0.38503,JOD:0.7093,
+    ILS:3.7005,EGP:48.5,MAD:10.094,TND:3.148,DZD:134,LYD:4.82,IRR:42250,IQD:1310,
+    LBP:89500,YER:250.3,SYP:13000,ZAR:18.6,NGN:1550,KES:130,GHS:15.5,ETB:56.65,
+    TZS:2628,UGX:3760,ZMW:27.35,XOF:605.5,XAF:605.5,XPF:110.2,BWP:13.64,NAD:18.6,
+    MUR:44.6,SCR:13.5,DJF:177.7,SOS:571,RWF:1290,BIF:2885,GMD:67.8,SZL:18.6,
+    LSL:18.6,MGA:4535,MZN:63.9,AOA:850,GNF:8625,CDF:2750,MDL:17.75,STN:23.4,
+    CVE:101.8,SDG:601.5,ERN:15,LRD:189,RUB:91.95,TRY:32.5,PLN:3.98,HUF:361.1,
+    CZK:23.197,RON:4.596,BGN:1.8079,NOK:10.594,SEK:10.392,DKK:6.8897,ISK:138,
+    HRK:6.961,RSD:108.86,BAM:1.8079,MKD:56.89,ALL:97.48,UAH:39.5,GEL:2.71,
+    AMD:397,AZN:1.7,BYN:3.24,KZT:462,UZS:12600,TMT:3.5,TJS:10.9,
+    BRL:5.051,MXN:17.105,ARS:915,CLP:939,COP:3950,PEN:3.76,UYU:40.2,BOB:6.91,
+    PYG:7300,GTQ:7.78,DOP:59.5,CRC:515.6,JMD:155,TTD:6.77,HTG:132,HNL:24.65,
+    NIO:36.7,PAB:1,BZD:2,GYD:209,SRD:35.6,BBD:2,XCD:2.7,BMD:1,KYD:0.8333,BSD:1,AWG:1.79,
+    FJD:2.26,PGK:3.95,WST:2.74,TOP:2.38,VUV:118,SBD:8.42,
+    AFN:72,BTN:83.52,KMF:455,KPW:900,MRU:39.8,SHP:0.79015,GIP:0.79015,FKP:0.79015,
+    SVC:8.75,CUP:24,VES:36.5,ZWL:361,ANG:1.79,SLL:20969,
+    FOK:6.8897,GGP:0.79015,IMP:0.79015,JEP:0.79015,KID:1.5283,TVD:1.5283,SLE:22.7,SSP:1320,XDR:0.757
+};
+
+/* ── CUR-1-D  Decimal precision ── */
+MultiCalc.data.currencyDecimals = {
+    zero: new Set(['JPY','KRW','IDR','VND','KHR','LAK','MMK','GNF','UGX','RWF','BIF','MGA','XOF','XAF','XPF','DJF','KMF','PYG','CLP','COP','NGN','PKR','BDT','SLL','CDF','SOS','SSP']),
+    three: new Set(['KWD','BHD','OMR','JOD','TND','LYD','IQD'])
+};
+
+/* ── Picker state ── */
+var _currPickerSide = 'from';
+
+/* ── CUR-4  Formatting helpers ── */
+function fmtCurrencyAmount(amount, code) {
+    var dp = MultiCalc.data.currencyDecimals;
+    var decimals = dp.zero.has(code) ? 0 : dp.three.has(code) ? 3 : 2;
+    return new Intl.NumberFormat('en-US', {minimumFractionDigits:decimals, maximumFractionDigits:decimals}).format(amount);
+}
+function fmtCurrencyRate(rate) {
+    var abs = Math.abs(rate);
+    var d = abs>=100000?0:abs>=10000?1:abs>=1000?2:abs>=100?3:abs>=10?4:abs>=1?5:abs>=0.1?6:7;
+    return new Intl.NumberFormat('en-US', {minimumFractionDigits:d, maximumFractionDigits:d}).format(rate);
+}
+
+/* ── CUR-3  Live rates fetch ── */
+var CURRENCY_API_URL = 'https://open.er-api.com/v6/latest/USD';
+var CURRENCY_CACHE_TTL = 23*60*60*1000 + 56*60*1000;
+async function fetchLiveRates() {
+    if (MultiCalc.state.liveRates && MultiCalc.state.liveRatesFetchedAt &&
+        (Date.now()-MultiCalc.state.liveRatesFetchedAt) < CURRENCY_CACHE_TTL) {
+        return MultiCalc.state.liveRates;
+    }
+    try {
+        var res = await Promise.race([
+            fetch(CURRENCY_API_URL),
+            new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))
+        ]);
+        if (!res.ok) throw new Error('HTTP '+res.status);
+        var data = await res.json();
+        if (data?.result !== 'success' || !data.rates) throw new Error('Bad response');
+        var rates = {};
+        for (var k in data.rates) rates[k.toUpperCase()] = data.rates[k];
+        MultiCalc.state.liveRates = rates;
+        MultiCalc.state.liveRatesFetchedAt = Date.now();
+        return rates;
+    } catch(e) { return null; }
+}
+
+/* ── CUR-4  Conversion engine ── */
+async function convertCurrency() {
+    var amtRaw = document.getElementById('curr-amt').value.replace(',','.');
+    var amt = parseFloat(amtRaw);
+    var from = MultiCalc.state.currFrom || 'USD';
+    var to   = MultiCalc.state.currTo   || 'EUR';
+    var result = document.getElementById('result-curr');
+    if (!result) return;
+    if (!isFinite(amt) || amt <= 0) { result.innerText='Εισάγετε έγκυρο ποσό.'; result.classList.add('show'); return; }
+    if (from === to) { result.innerHTML='<strong>'+fmtCurrencyAmount(amt,from)+' '+from+'</strong>'; result.classList.add('show'); return; }
+    var liveRates = await fetchLiveRates();
+    var rates = liveRates || MultiCalc.data.staticRates;
+    var rFrom = rates[from] || MultiCalc.data.staticRates[from];
+    var rTo   = rates[to]   || MultiCalc.data.staticRates[to];
+    if (!rFrom || !rTo || rFrom===0) { result.innerText='Σφάλμα μετατροπής.'; return; }
+    var crossRate   = rTo / rFrom;
+    var converted   = amt * crossRate;
+    var inverseRate = rFrom / rTo;
+    var isLive = !!liveRates;
+    result.innerHTML =
+        '<strong>'+fmtCurrencyAmount(amt,from)+' '+from+' = '+fmtCurrencyAmount(converted,to)+' '+to+'</strong>'+
+        '<div style="font-size:0.78rem;opacity:0.6;margin-top:8px;line-height:1.7;">'+
+            '1&nbsp;'+from+'&nbsp;=&nbsp;'+fmtCurrencyRate(crossRate)+'&nbsp;'+to+
+            '<span style="margin:0 8px;opacity:0.4;">|</span>'+
+            '1&nbsp;'+to+'&nbsp;=&nbsp;'+fmtCurrencyRate(inverseRate)+'&nbsp;'+from+
+            '<br><span style="font-size:0.72rem;">'+(isLive?'🟢 live':'⚪ offline (static rates)')+'</span>'+
+        '</div>';
+    result.classList.add('show');
+}
+
+/* ── CUR-5  UI functions ── */
+function _updateCurrTrigger(side, code) {
+    var flagEl = document.getElementById(side+'-flag');
+    var codeEl = document.getElementById(side+'-code');
+    var nameEl = document.getElementById(side+'-name');
+    if (!flagEl||!codeEl||!nameEl) return;
+    var curr = MultiCalc.data.allCurrencies.find(function(c){return c.code===code;});
+    flagEl.innerText = MultiCalc.data.currencyFlags[code] || '🌍';
+    codeEl.innerText = code;
+    nameEl.innerText = curr ? (curr.el || curr.en) : code;
+}
+
+function swapCurrencies() {
+    var tmp = MultiCalc.state.currFrom;
+    MultiCalc.state.currFrom = MultiCalc.state.currTo;
+    MultiCalc.state.currTo   = tmp;
+    _updateCurrTrigger('from', MultiCalc.state.currFrom);
+    _updateCurrTrigger('to',   MultiCalc.state.currTo);
+    convertCurrency();
+}
+
+function openCurrPicker(side) {
+    _currPickerSide = side || 'from';
+    var overlay  = document.getElementById('curr-picker-overlay');
+    var titleEl  = document.getElementById('curr-picker-title');
+    var searchEl = document.getElementById('curr-picker-search');
+    if (!overlay) return;
+    titleEl.innerText = _currPickerSide==='from' ? 'Από — Επιλογή' : 'Προς — Επιλογή';
+    if (searchEl) searchEl.value = '';
+    var selected = _currPickerSide==='from' ? MultiCalc.state.currFrom : MultiCalc.state.currTo;
+    _buildCurrPickerList(selected, '');
+    overlay.style.display = ''; // MULTICALC-APP's loader force-sets this to
+        // 'none' inline when injecting the overlay (so it can't flash open
+        // before its CSS applies); nothing else ever clears it again, so
+        // .open's opacity/pointer-events toggle alone can never make the
+        // panel visible without this line.
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(function(){
+        var sel = document.querySelector('#curr-picker-list .curr-picker-item.selected');
+        if (sel) sel.scrollIntoView({block:'center',behavior:'smooth'});
+    }, 280);
+}
+
+function closeCurrPicker() {
+    var overlay = document.getElementById('curr-picker-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+function filterCurrPicker() {
+    var q = (document.getElementById('curr-picker-search')?.value || '').trim();
+    var selected = _currPickerSide==='from' ? MultiCalc.state.currFrom : MultiCalc.state.currTo;
+    _buildCurrPickerList(selected, q);
+}
+
+function _buildCurrPickerList(selectedCode, query) {
+    var list = document.getElementById('curr-picker-list');
+    if (!list) return;
+    var q = query.toLowerCase();
+    var items = q
+        ? MultiCalc.data.allCurrencies.filter(function(c){
+            var name = c.el || c.en;
+            return c.code.toLowerCase().includes(q) || name.toLowerCase().includes(q);
+          })
+        : MultiCalc.data.allCurrencies;
+    if (!items.length) { list.innerHTML='<div class="curr-picker-empty">🔍 Δεν βρέθηκαν αποτελέσματα</div>'; return; }
+    list.innerHTML = items.map(function(c){
+        var name = c.el || c.en;
+        var flag = MultiCalc.data.currencyFlags[c.code] || '🌍';
+        var sel  = c.code === selectedCode;
+        return '<div class="curr-picker-item'+(sel?' selected':'')+'" data-code="'+c.code+'" role="option" aria-selected="'+sel+'">'+
+            '<span class="curr-picker-item-flag">'+flag+'</span>'+
+            '<div class="curr-picker-item-info">'+
+                '<div class="curr-picker-item-code">'+c.code+'</div>'+
+                '<div class="curr-picker-item-name">'+name+'</div>'+
+            '</div>'+
+            '<span class="curr-picker-item-check">✓</span>'+
+        '</div>';
+    }).join('');
+    list.onclick = function(e){
+        var item = e.target.closest('.curr-picker-item');
+        if (item?.dataset.code) selectCurrPickerItem(item.dataset.code);
+    };
+}
+
+function selectCurrPickerItem(code) {
+    if (!code) return;
+    if (_currPickerSide==='from') MultiCalc.state.currFrom = code;
+    else                          MultiCalc.state.currTo   = code;
+    _updateCurrTrigger(_currPickerSide, code);
+    closeCurrPicker();
+    convertCurrency();
+}
+
+/* Keyboard: Escape closes picker */
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeCurrPicker(); });
+
+/* Init */
+_updateCurrTrigger('from', MultiCalc.state.currFrom);
+_updateCurrTrigger('to',   MultiCalc.state.currTo);
+fetchLiveRates();
+</script>
+</body>
+</html>
