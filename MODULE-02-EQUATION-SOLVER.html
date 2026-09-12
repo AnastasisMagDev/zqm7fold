@@ -192,8 +192,15 @@ body.theme-light .eq-answer{background:rgba(99,102,241,0.88);}
             </div>
             <div id="eq-result" class="tool-result" style="background:transparent;padding:0;"></div>
             <div id="eq-steps-container" style="display:block;margin-top:15px;padding:15px;background:rgba(0,0,0,0.25);border-radius:12px;border:1px solid rgba(99,102,241,0.15);">
-                <div style="font-size:0.85rem;font-weight:600;color:#fbbf24;margin-bottom:10px;">📋 Step-by-Step Solution</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                    <div style="font-size:0.85rem;font-weight:600;color:#fbbf24;">📋 Step-by-Step Solution</div>
+                    <div id="eq-depth-toggle" style="display:none;gap:6px;">
+                        <button type="button" onclick="setEqStepDepth('quick')" id="eq-depth-quick-btn" class="eq-chip" style="padding:4px 10px;font-size:0.72rem;"></button>
+                        <button type="button" onclick="setEqStepDepth('full')" id="eq-depth-full-btn" class="eq-chip active" style="padding:4px 10px;font-size:0.72rem;"></button>
+                    </div>
+                </div>
                 <div id="eq-steps-content" style="font-size:0.85rem;line-height:1.8;color:#e2e8f0;"></div>
+                <div id="eq-alt-method-content" style="font-size:0.85rem;line-height:1.8;color:#e2e8f0;display:none;"></div>
             </div>
             <div id="eq-plot" style="width:100%;max-width:100%;height:300px;margin-top:32px;border-radius:12px;overflow:visible;display:none;background:rgba(0,0,0,0.2);cursor:pointer;position:relative;" onclick="toggleFullScreenPlot()" tabindex="0" role="button" aria-label="Graph — click to fullscreen"></div>
             <div id="eq-compare-box" style="display:none;margin-top:14px;">
@@ -258,7 +265,7 @@ try{
 
 /* ── Minimal MultiCalc namespace stub ── */
 var MultiCalc = {
-    state: { currentLang:'el', eqMode:'linear' },
+    state: { currentLang:'el', eqMode:'linear', eqStepDepth:'full' },
     data: {}
 };
 
@@ -721,6 +728,450 @@ MultiCalc.data.stepTemplates = {
     }
 };
 
+/* ── quadTutorText — richer "real tutor" content for the quadratic solver:
+   step titles, why-explanations, common-mistake warnings, and the
+   completing-the-square alternative method. Kept separate from
+   stepTemplates (used unchanged by every other equation type) since
+   this is a genuinely richer per-step format (title+why+work+warning
+   vs. a single string). ── */
+MultiCalc.data.quadTutorText = {
+    el: {
+        steps_title: 'Αναλυτική Λύση',
+        depth_quick: 'Σύντομα βήματα', depth_full: 'Πλήρης ανάλυση',
+        method_disc_title: 'Μέθοδος 1: Τύπος διακρίνουσας',
+        step1_title: 'Βήμα 1: Αναγνώριση τύπου εξίσωσης',
+        step1_why: 'Η εξίσωση έχει όρο x², άρα είναι τετραγωνική της μορφής ax² + bx + c = 0.',
+        step2_title: 'Βήμα 2: Αναγνώριση συντελεστών',
+        step2_why: 'Χρειαζόμαστε τα a, b, c για να εφαρμόσουμε τον τύπο των ριζών.',
+        step2_warning: 'Πρόσεξε το πρόσημο: αν ο όρος είναι "−5x", τότε b = −5, όχι 5.',
+        step3_title: 'Βήμα 3: Υπολογισμός διακρίνουσας Δ',
+        step3_why: 'Το Δ μας λέει πόσες πραγματικές ρίζες έχει η εξίσωση, πριν καν τις υπολογίσουμε.',
+        step3_warning: 'Το 4ac μπορεί να είναι θετικό ή αρνητικό ανάλογα με τα πρόσημα των a, c — μην παραλείψεις το πρόσημο, και πρόσεξε ότι αφαιρείς το 4ac, δεν το προσθέτεις.',
+        step4_title: 'Βήμα 4: Απόφαση κλάδου βάσει του Δ',
+        step4_why: 'Το πρόσημο του Δ καθορίζει τι είδους ρίζες θα βρούμε.',
+        step4_pos: 'Επειδή Δ > 0 → η εξίσωση έχει δύο διαφορετικές πραγματικές ρίζες.',
+        step4_zero: 'Επειδή Δ = 0 → η εξίσωση έχει μία διπλή πραγματική ρίζα.',
+        step4_neg: 'Επειδή Δ < 0 → η εξίσωση δεν έχει πραγματικές ρίζες (μόνο μιγαδικές).',
+        step5_title: 'Βήμα 5: Εφαρμογή τύπου ριζών',
+        step5_why: 'Εφαρμόζουμε τον τύπο x = (−b ± √Δ) / 2a με τις τιμές που ήδη υπολογίσαμε.',
+        step6_title: 'Βήμα 6: Επαλήθευση',
+        step6_why: 'Αντικαθιστούμε κάθε ρίζα στην αρχική εξίσωση για να επιβεβαιώσουμε ότι ισχύει.',
+        step7_title: 'Βήμα 7: Ανάλυση διαστήματος',
+        step7_why: 'Ελέγχουμε το πρόσημο της f(x) ανάμεσα και έξω από τις ρίζες, για να βρούμε πού ισχύει η ανίσωση.',
+        step7_between: 'ισχύει ανάμεσα στις ρίζες', step7_outside: 'ισχύει έξω από τις ρίζες',
+        verify_lead: 'Αντικαθιστούμε {x} στην αρχική εξίσωση:',
+        verify_complex_note: 'Οι μιγαδικές ρίζες δεν επαληθεύονται με πραγματική αντικατάσταση εδώ — ισχύουν αλγεβρικά από την κατασκευή του τύπου.',
+        method_square_title: 'Μέθοδος 2: Συμπλήρωση τετραγώνου',
+        alt_intro: 'Διαφορετικά σχολεία διδάσκουν διαφορετικές μεθόδους — δες πώς φτάνουμε στο ίδιο αποτέλεσμα και με τις δύο.',
+        alt_step1_title: 'Βήμα 1: Διαίρεση με τον συντελεστή a',
+        alt_step1_why: 'Θέλουμε ο συντελεστής του x² να γίνει 1.',
+        alt_step2_title: 'Βήμα 2: Μεταφορά σταθερού όρου',
+        alt_step2_why: 'Απομονώνουμε τους όρους με x στην αριστερή πλευρά.',
+        alt_step3_title: 'Βήμα 3: Συμπλήρωση τετραγώνου',
+        alt_step3_why: 'Προσθέτουμε το τετράγωνο του μισού συντελεστή του x και στις δύο πλευρές, ώστε το αριστερό μέλος να γίνει τέλειο τετράγωνο.',
+        alt_step4_title: 'Βήμα 4: Γράφουμε ως τέλειο τετράγωνο',
+        alt_step4_why: 'Το αριστερό μέλος είναι τώρα (x + κάτι)².',
+        alt_step5_title: 'Βήμα 5: Τετραγωνική ρίζα και λύση',
+        alt_step5_why: 'Παίρνουμε τετραγωνική ρίζα και στις δύο πλευρές (± και στις δύο περιπτώσεις) και λύνουμε ως προς x.',
+        alt_match_ok: '✓ Ίδιες ρίζες με τη Μέθοδο 1 — όπως αναμενόταν, οι δύο μέθοδοι πάντα συμφωνούν.',
+        alt_match_note: 'Σημείωση: το (b/2a)² − c/a που εμφανίζεται εδώ είναι απλά το Δ/4a² γραμμένο διαφορετικά.'
+    },
+    en: {
+        steps_title: 'Detailed Solution',
+        depth_quick: 'Quick steps', depth_full: 'Full analysis',
+        method_disc_title: 'Method 1: Discriminant formula',
+        step1_title: 'Step 1: Identify the equation type',
+        step1_why: 'The equation has an x² term, so it is quadratic, of the form ax² + bx + c = 0.',
+        step2_title: 'Step 2: Identify the coefficients',
+        step2_why: 'We need a, b, c to apply the root formula.',
+        step2_warning: 'Watch the sign: if the term is "−5x", then b = −5, not 5.',
+        step3_title: 'Step 3: Compute the discriminant Δ',
+        step3_why: 'Δ tells us how many real roots the equation has, before we even find them.',
+        step3_warning: '4ac can be positive or negative depending on the signs of a and c — don\'t drop the sign, and remember you are subtracting 4ac, not adding it.',
+        step4_title: 'Step 4: Decide the branch from Δ',
+        step4_why: "The sign of Δ determines what kind of roots we'll find.",
+        step4_pos: 'Because Δ > 0 → the equation has two distinct real roots.',
+        step4_zero: 'Because Δ = 0 → the equation has one repeated (double) real root.',
+        step4_neg: 'Because Δ < 0 → the equation has no real roots (complex only).',
+        step5_title: 'Step 5: Apply the root formula',
+        step5_why: 'We apply x = (−b ± √Δ) / 2a using the values already found.',
+        step6_title: 'Step 6: Verify',
+        step6_why: 'We substitute each root back into the original equation to confirm it holds.',
+        step7_title: 'Step 7: Interval analysis',
+        step7_why: "We check the sign of f(x) between and outside the roots to find where the inequality holds.",
+        step7_between: 'holds between the roots', step7_outside: 'holds outside the roots',
+        verify_lead: 'Substituting {x} into the original equation:',
+        verify_complex_note: "Complex roots aren't verified by real substitution here — they hold algebraically by construction of the formula.",
+        method_square_title: 'Method 2: Completing the square',
+        alt_intro: 'Different schools teach different methods — see how both reach the same result.',
+        alt_step1_title: 'Step 1: Divide by the coefficient a',
+        alt_step1_why: 'We want the coefficient of x² to become 1.',
+        alt_step2_title: 'Step 2: Move the constant term',
+        alt_step2_why: 'Isolate the x-terms on the left side.',
+        alt_step3_title: 'Step 3: Complete the square',
+        alt_step3_why: "Add the square of half the x-coefficient to both sides, so the left side becomes a perfect square.",
+        alt_step4_title: 'Step 4: Write as a perfect square',
+        alt_step4_why: 'The left side is now (x + something)².',
+        alt_step5_title: 'Step 5: Take the square root and solve',
+        alt_step5_why: 'Take the square root of both sides (± in both cases) and solve for x.',
+        alt_match_ok: '✓ Same roots as Method 1 — as expected, the two methods always agree.',
+        alt_match_note: 'Note: the (b/2a)² − c/a appearing here is just Δ/4a² written differently.'
+    },
+    es: {
+        steps_title: 'Solución Detallada',
+        depth_quick: 'Pasos rápidos', depth_full: 'Análisis completo',
+        method_disc_title: 'Método 1: Fórmula del discriminante',
+        step1_title: 'Paso 1: Identificar el tipo de ecuación',
+        step1_why: 'La ecuación tiene un término x², así que es cuadrática, de la forma ax² + bx + c = 0.',
+        step2_title: 'Paso 2: Identificar los coeficientes',
+        step2_why: 'Necesitamos a, b, c para aplicar la fórmula de las raíces.',
+        step2_warning: 'Cuidado con el signo: si el término es "−5x", entonces b = −5, no 5.',
+        step3_title: 'Paso 3: Calcular el discriminante Δ',
+        step3_why: 'Δ nos dice cuántas raíces reales tiene la ecuación, antes incluso de calcularlas.',
+        step3_warning: '4ac puede ser positivo o negativo según los signos de a y c — no omitas el signo, y recuerda que se resta 4ac, no se suma.',
+        step4_title: 'Paso 4: Decidir la rama según Δ',
+        step4_why: 'El signo de Δ determina qué tipo de raíces encontraremos.',
+        step4_pos: 'Como Δ > 0 → la ecuación tiene dos raíces reales distintas.',
+        step4_zero: 'Como Δ = 0 → la ecuación tiene una raíz real doble.',
+        step4_neg: 'Como Δ < 0 → la ecuación no tiene raíces reales (solo complejas).',
+        step5_title: 'Paso 5: Aplicar la fórmula de las raíces',
+        step5_why: 'Aplicamos x = (−b ± √Δ) / 2a con los valores ya calculados.',
+        step6_title: 'Paso 6: Verificar',
+        step6_why: 'Sustituimos cada raíz en la ecuación original para confirmar que se cumple.',
+        step7_title: 'Paso 7: Análisis de intervalos',
+        step7_why: 'Comprobamos el signo de f(x) entre y fuera de las raíces para saber dónde se cumple la inecuación.',
+        step7_between: 'se cumple entre las raíces', step7_outside: 'se cumple fuera de las raíces',
+        verify_lead: 'Sustituyendo {x} en la ecuación original:',
+        verify_complex_note: 'Las raíces complejas no se verifican aquí por sustitución real — son válidas algebraicamente por construcción de la fórmula.',
+        method_square_title: 'Método 2: Completar el cuadrado',
+        alt_intro: 'Distintos colegios enseñan métodos distintos — mira cómo ambos llegan al mismo resultado.',
+        alt_step1_title: 'Paso 1: Dividir entre el coeficiente a',
+        alt_step1_why: 'Queremos que el coeficiente de x² sea 1.',
+        alt_step2_title: 'Paso 2: Mover el término constante',
+        alt_step2_why: 'Aislamos los términos con x en el lado izquierdo.',
+        alt_step3_title: 'Paso 3: Completar el cuadrado',
+        alt_step3_why: 'Sumamos el cuadrado de la mitad del coeficiente de x en ambos lados, para que el lado izquierdo sea un cuadrado perfecto.',
+        alt_step4_title: 'Paso 4: Escribir como cuadrado perfecto',
+        alt_step4_why: 'El lado izquierdo ahora es (x + algo)².',
+        alt_step5_title: 'Paso 5: Raíz cuadrada y solución',
+        alt_step5_why: 'Tomamos raíz cuadrada en ambos lados (± en los dos casos) y despejamos x.',
+        alt_match_ok: '✓ Mismas raíces que el Método 1 — como se esperaba, ambos métodos siempre coinciden.',
+        alt_match_note: 'Nota: el (b/2a)² − c/a que aparece aquí es simplemente Δ/4a² escrito de otra forma.'
+    }
+};
+
+/* ── linTutorText — richer "real tutor" content for the linear
+   solver, same self-contained pattern as quadTutorText: step titles,
+   why-explanations, common-mistake warnings, and the "balance method"
+   alternative. Covers all 3 branches a linear equation/inequality can
+   land in (unique solution, always-true, always-false). ── */
+MultiCalc.data.linTutorText = {
+    el: {
+        depth_quick: 'Σύντομα βήματα', depth_full: 'Πλήρης ανάλυση',
+        step1_title: 'Βήμα 1: Αναγνώριση τύπου εξίσωσης',
+        step1_why: 'Δεν υπάρχει x² ή ανώτερη δύναμη του x — μόνο όροι με x στην πρώτη δύναμη και σταθεροί όροι — άρα είναι πρωτοβάθμια (γραμμική), της μορφής ax + b {op} 0.',
+        step2_title: 'Βήμα 2: Αναγνώριση συντελεστών',
+        step2_why: 'Χρειαζόμαστε τα a και b για να αποφασίσουμε πώς λύνεται η εξίσωση.',
+        step2_warning: 'Το πρόσημο του b εξαρτάται από τη μεταφορά όρων ανάμεσα στα δύο μέλη — έλεγξέ το προσεκτικά, ειδικά αν κάποιος όρος άλλαξε πλευρά.',
+        step3_title: 'Βήμα 3: Απόφαση κλάδου',
+        step3_why: 'Αν a = 0, ο όρος x εξαφανίζεται εντελώς — τότε δεν λύνουμε πια ως προς x, αλλά ελέγχουμε αν η πρόταση που απομένει είναι αληθής ή ψευδής.',
+        step3_azero_lead: 'Επειδή a = 0, ο όρος x μηδενίζεται. Απομένει η πρόταση: {expr}',
+        step3_nonzero: 'Επειδή a ≠ 0, μπορούμε να διαιρέσουμε και τα δύο μέλη με το a για να απομονώσουμε το x.',
+        step4_title: 'Βήμα 4: Συμπέρασμα',
+        step4_azero_true_why: 'Η πρόταση {expr} ισχύει για κάθε πραγματικό αριθμό — άρα κάθε x είναι λύση.',
+        step4_azero_false_why: 'Η πρόταση {expr} δεν ισχύει ποτέ — άρα δεν υπάρχει καμία λύση.',
+        step4_azero_true_verdict: '✓ ΑΛΗΘΕΣ — ισχύει για κάθε x',
+        step4_azero_false_verdict: '✗ ΨΕΥΔΕΣ — καμία λύση',
+        step4_isolate_title: 'Βήμα 4: Διαίρεση και των δύο μελών με α',
+        step4_isolate_why_eq: 'Διαιρούμε και τα δύο μέλη με τον συντελεστή a, ώστε να μείνει μόνο το x.',
+        step4_isolate_why_ineq: 'Διαιρούμε και τα δύο μέλη με τον συντελεστή a. Προσοχή: αν διαιρέσουμε με αρνητικό αριθμό, η φορά της ανίσωσης αλλάζει!',
+        step4_isolate_warning_ineq: 'Αυτό είναι το πιο συχνό λάθος στις ανισώσεις: αν πολλαπλασιάσεις ή διαιρέσεις και τις δύο πλευρές με αρνητικό αριθμό, πρέπει να αντιστρέψεις τη φορά της ανίσωσης.',
+        step4_noflip: 'Επειδή a = {a} > 0, η φορά της ανίσωσης ΔΕΝ αλλάζει.',
+        step4_flip: 'Επειδή a = {a} < 0, η φορά της ανίσωσης ΑΛΛΑΖΕΙ: {op} → {newOp}',
+        step5_title_eq: 'Βήμα 5: Επαλήθευση',
+        step5_why_eq: 'Αντικαθιστούμε τη λύση στην αρχική εξίσωση για να επιβεβαιώσουμε ότι ισχύει.',
+        step5_title_ineq: 'Βήμα 5: Γραφή ως διάστημα',
+        step5_why_ineq: 'Γράφουμε το σύνολο των λύσεων πάνω στον πραγματικό άξονα.',
+        step6_title_ineq: 'Βήμα 6: Επαλήθευση με δοκιμαστική τιμή',
+        step6_why_ineq: 'Δοκιμάζουμε μία τιμή μέσα στο διάστημα και μία έξω, για να επιβεβαιώσουμε οπτικά ότι το αποτέλεσμα είναι σωστό.',
+        check_inside_label: '(μέσα στο διάστημα)',
+        check_outside_label: '(έξω από το διάστημα)',
+        holds_true: 'ισχύει ✓',
+        holds_false: 'δεν ισχύει ✗',
+        verify_lead: 'Αντικαθιστούμε {x} στην αρχική εξίσωση:',
+        alt_method_title: 'Μέθοδος 2: Μέθοδος ισορροπίας (ζυγός)',
+        alt_intro: 'Μια διαφορετική οπτική: αντί να συγκεντρώσουμε πρώτα όλους τους όρους, δουλεύουμε με τις δύο πλευρές σαν ζυγό — ό,τι κάνουμε στη μία πλευρά, το κάνουμε ακριβώς και στην άλλη.',
+        alt_step1_title: 'Βήμα 1: Οι δύο πλευρές ξεχωριστά',
+        alt_step1_why: 'Ξεκινάμε από τις δύο πλευρές της εξίσωσης όπως δόθηκαν, χωρίς να τις συνδυάσουμε ακόμα.',
+        alt_step2_title: 'Βήμα 2: Αφαιρούμε τον όρο x από τη μία πλευρά — και τις δύο',
+        alt_step2_why: 'Για να μείνει ο «ζυγός» ισορροπημένος, ό,τι αφαιρούμε από τη μία πλευρά, το αφαιρούμε και από την άλλη.',
+        alt_step2_lead: 'Αφαιρούμε τον όρο ({term}) και από τις δύο πλευρές:',
+        alt_step3_title: 'Βήμα 3: Αφαιρούμε τον σταθερό όρο — και τις δύο πλευρές',
+        alt_step3_why: 'Απομονώνουμε τον όρο του x σε μία πλευρά, μετακινώντας τη σταθερά στην άλλη με την ίδια λογική.',
+        alt_step3_lead: 'Αφαιρούμε ({term}) και από τις δύο πλευρές:',
+        alt_step4_title: 'Βήμα 4: Διαίρεση με τον συντελεστή a',
+        alt_match_ok: '✓ Ίδιο αποτέλεσμα με τη Μέθοδο 1 — όπως αναμενόταν, και οι δύο μέθοδοι οδηγούν στην ίδια λύση.'
+    },
+    en: {
+        depth_quick: 'Quick steps', depth_full: 'Full analysis',
+        step1_title: 'Step 1: Identify the equation type',
+        step1_why: 'There is no x² or higher power of x — only terms with x to the first power and constant terms — so this is a first-degree (linear) equation of the form ax + b {op} 0.',
+        step2_title: 'Step 2: Identify the coefficients',
+        step2_why: 'We need a and b to decide how the equation is solved.',
+        step2_warning: 'The sign of b depends on which terms moved across sides — check it carefully, especially if a term switched sides.',
+        step3_title: 'Step 3: Decide the branch',
+        step3_why: 'If a = 0, the x term vanishes entirely — we are no longer solving for x, but checking whether the remaining statement is true or false.',
+        step3_azero_lead: 'Because a = 0, the x term vanishes. What remains is the statement: {expr}',
+        step3_nonzero: 'Because a ≠ 0, we can divide both sides by a to isolate x.',
+        step4_title: 'Step 4: Conclusion',
+        step4_azero_true_why: 'The statement {expr} holds for every real number — so every x is a solution.',
+        step4_azero_false_why: 'The statement {expr} never holds — so there is no solution.',
+        step4_azero_true_verdict: '✓ TRUE — holds for every x',
+        step4_azero_false_verdict: '✗ FALSE — no solution',
+        step4_isolate_title: 'Step 4: Divide both sides by a',
+        step4_isolate_why_eq: 'We divide both sides by the coefficient a, leaving only x.',
+        step4_isolate_why_ineq: 'We divide both sides by the coefficient a. Careful: dividing by a negative number flips the inequality!',
+        step4_isolate_warning_ineq: 'This is the most common inequality mistake: multiplying or dividing both sides by a negative number requires flipping the inequality direction.',
+        step4_noflip: 'Because a = {a} > 0, the inequality direction does NOT change.',
+        step4_flip: 'Because a = {a} < 0, the inequality direction FLIPS: {op} → {newOp}',
+        step5_title_eq: 'Step 5: Verify',
+        step5_why_eq: 'We substitute the solution back into the original equation to confirm it holds.',
+        step5_title_ineq: 'Step 5: Write as an interval',
+        step5_why_ineq: 'We write the solution set on the real number line.',
+        step6_title_ineq: 'Step 6: Verify with a test value',
+        step6_why_ineq: 'We test one value inside the interval and one outside it, to visibly confirm the result is correct.',
+        check_inside_label: '(inside the interval)',
+        check_outside_label: '(outside the interval)',
+        holds_true: 'holds ✓',
+        holds_false: "doesn't hold ✗",
+        verify_lead: 'Substituting {x} into the original equation:',
+        alt_method_title: 'Method 2: Balance method',
+        alt_intro: 'A different perspective: instead of collecting all terms first, we treat both sides like a balance scale — whatever we do to one side, we do exactly the same to the other.',
+        alt_step1_title: 'Step 1: The two sides, separately',
+        alt_step1_why: 'We start from the two sides of the equation exactly as given, without combining them yet.',
+        alt_step2_title: 'Step 2: Remove the x term from one side — from both',
+        alt_step2_why: 'To keep the "scale" balanced, whatever we remove from one side, we remove from the other too.',
+        alt_step2_lead: 'We subtract the term ({term}) from both sides:',
+        alt_step3_title: 'Step 3: Remove the constant term — from both sides',
+        alt_step3_why: 'We isolate the x term on one side, moving the constant to the other by the same logic.',
+        alt_step3_lead: 'We subtract ({term}) from both sides:',
+        alt_step4_title: 'Step 4: Divide by the coefficient a',
+        alt_match_ok: '✓ Same result as Method 1 — as expected, both methods lead to the same solution.'
+    },
+    es: {
+        depth_quick: 'Pasos rápidos', depth_full: 'Análisis completo',
+        step1_title: 'Paso 1: Identificar el tipo de ecuación',
+        step1_why: 'No hay x² ni una potencia mayor de x — solo términos con x a la primera potencia y términos constantes — así que es una ecuación de primer grado (lineal) de la forma ax + b {op} 0.',
+        step2_title: 'Paso 2: Identificar los coeficientes',
+        step2_why: 'Necesitamos a y b para decidir cómo se resuelve la ecuación.',
+        step2_warning: 'El signo de b depende de qué términos cambiaron de lado — revísalo con cuidado, especialmente si algún término cambió de miembro.',
+        step3_title: 'Paso 3: Decidir la rama',
+        step3_why: 'Si a = 0, el término x desaparece por completo — ya no resolvemos para x, sino que comprobamos si la afirmación restante es verdadera o falsa.',
+        step3_azero_lead: 'Como a = 0, el término x desaparece. Queda la afirmación: {expr}',
+        step3_nonzero: 'Como a ≠ 0, podemos dividir ambos lados entre a para despejar x.',
+        step4_title: 'Paso 4: Conclusión',
+        step4_azero_true_why: 'La afirmación {expr} se cumple para todo número real — así que todo x es solución.',
+        step4_azero_false_why: 'La afirmación {expr} nunca se cumple — así que no hay solución.',
+        step4_azero_true_verdict: '✓ VERDADERO — se cumple para todo x',
+        step4_azero_false_verdict: '✗ FALSO — sin solución',
+        step4_isolate_title: 'Paso 4: Dividir ambos lados entre a',
+        step4_isolate_why_eq: 'Dividimos ambos lados entre el coeficiente a, dejando solo x.',
+        step4_isolate_why_ineq: 'Dividimos ambos lados entre el coeficiente a. Cuidado: dividir entre un número negativo invierte la inecuación.',
+        step4_isolate_warning_ineq: 'Este es el error más común en inecuaciones: multiplicar o dividir ambos lados entre un número negativo exige invertir el sentido de la desigualdad.',
+        step4_noflip: 'Como a = {a} > 0, el sentido de la desigualdad NO cambia.',
+        step4_flip: 'Como a = {a} < 0, el sentido de la desigualdad CAMBIA: {op} → {newOp}',
+        step5_title_eq: 'Paso 5: Verificar',
+        step5_why_eq: 'Sustituimos la solución en la ecuación original para confirmar que se cumple.',
+        step5_title_ineq: 'Paso 5: Escribir como intervalo',
+        step5_why_ineq: 'Escribimos el conjunto solución sobre la recta real.',
+        step6_title_ineq: 'Paso 6: Verificar con un valor de prueba',
+        step6_why_ineq: 'Probamos un valor dentro del intervalo y otro fuera, para confirmar visualmente que el resultado es correcto.',
+        check_inside_label: '(dentro del intervalo)',
+        check_outside_label: '(fuera del intervalo)',
+        holds_true: 'se cumple ✓',
+        holds_false: 'no se cumple ✗',
+        verify_lead: 'Sustituyendo {x} en la ecuación original:',
+        alt_method_title: 'Método 2: Método de balanza',
+        alt_intro: 'Una perspectiva distinta: en vez de agrupar todos los términos primero, tratamos ambos lados como una balanza — lo que hacemos en un lado, lo hacemos exactamente igual en el otro.',
+        alt_step1_title: 'Paso 1: Los dos lados, por separado',
+        alt_step1_why: 'Partimos de los dos lados de la ecuación tal como se dan, sin combinarlos todavía.',
+        alt_step2_title: 'Paso 2: Quitar el término x de un lado — de ambos',
+        alt_step2_why: 'Para mantener la "balanza" equilibrada, lo que quitamos de un lado, lo quitamos también del otro.',
+        alt_step2_lead: 'Restamos el término ({term}) de ambos lados:',
+        alt_step3_title: 'Paso 3: Quitar el término constante — de ambos lados',
+        alt_step3_why: 'Aislamos el término con x en un lado, moviendo la constante al otro con la misma lógica.',
+        alt_step3_lead: 'Restamos ({term}) de ambos lados:',
+        alt_step4_title: 'Paso 4: Dividir entre el coeficiente a',
+        alt_match_ok: '✓ Mismo resultado que el Método 1 — como se esperaba, ambos métodos llevan a la misma solución.'
+    }
+};
+
+/* ── cubTutorText — richer "real tutor" content for the cubic solver.
+   Unlike quadTutorText/linTutorText, step TITLES here are stored
+   WITHOUT a baked-in step number (see stepTitle() above) because the
+   step sequence's length/order genuinely varies by branch: 1 real
+   root found by the scan (deflate + solve a quadratic), 2 found
+   (Vieta gives the 3rd directly, no quadratic), or all 3 found
+   directly (no completion needed at all). ── */
+MultiCalc.data.cubTutorText = {
+    el: {
+        step1_title: 'Αναγνώριση τύπου εξίσωσης',
+        step1_why: 'Ο μεγαλύτερος εκθέτης του x είναι 3 — άρα είναι κυβική, της μορφής ax³ + bx² + cx + d = 0.',
+        step2_title: 'Γιατί χρειαζόμαστε αριθμητική μέθοδο',
+        step2_why: 'Σε αντίθεση με τη δευτεροβάθμια, η κυβική δεν έχει έναν απλό τύπο σαν το «−b±√Δ/2a» που διδάσκεται συνήθως. Υπάρχει τύπος (του Cardano) αλλά είναι πολύπλοκος. Αντ\' αυτού χρησιμοποιούμε αριθμητική μέθοδο: επειδή η κυβική είναι περιττού βαθμού, το γράφημά της πάει από −∞ σε +∞ (ή αντίστροφα) — άρα εγγυημένα τέμνει τον άξονα x τουλάχιστον μία φορά.',
+        step3_title: 'Εντοπισμός αλλαγής προσήμου',
+        step3_why: 'Αν η f(x) είναι συνεχής και αλλάζει πρόσημο ανάμεσα σε δύο σημεία, το Θεώρημα Ενδιάμεσης Τιμής εγγυάται τουλάχιστον μία ρίζα ανάμεσά τους.',
+        step3_work: 'f({lo}) = {flo},&nbsp;&nbsp;f({hi}) = {fhi} &nbsp;→&nbsp; διαφορετικά πρόσημα: υπάρχει ρίζα στο ({lo}, {hi})',
+        step4_title: 'Βελτίωση με τη μέθοδο Newton-Raphson',
+        step4_why: 'Ξεκινώντας από μια αρχική εκτίμηση κοντά στη ρίζα, ο τύπος xₙ₊₁ = xₙ − f(xₙ)/f′(xₙ) συγκλίνει γρήγορα στην πραγματική ρίζα.',
+        step4_converge: '→ συγκλίνει σε x ≈ {root}',
+        step5a_title: 'Σύνθετη διαίρεση',
+        step5a_why: 'Αφού βρήκαμε μία ρίζα r, διαιρούμε το πολυώνυμο με (x − r) για να πάρουμε μια δευτεροβάθμια με τις υπόλοιπες δύο ρίζες.',
+        step5b_title: 'Τύπος του Vieta',
+        step5b_why: 'Το άθροισμα και των τριών ριζών μιας κυβικής ισούται πάντα με −b/a. Αφού η σάρωση βρήκε ήδη 2 από τις 3 ρίζες, η τρίτη προκύπτει αμέσως, χωρίς διαίρεση.',
+        step5c_title: 'Και οι τρεις ρίζες εντοπίστηκαν απευθείας',
+        step5c_why: 'Η σάρωση εντόπισε και τις 3 πραγματικές ρίζες — επαναλαμβάνοντας την ίδια διαδικασία (Βήματα 3-4) σε κάθε αλλαγή προσήμου. Δεν χρειάζεται άλλη επεξεργασία.',
+        step6_title: 'Επίλυση της δευτεροβάθμιας',
+        step6_why: 'Λύνουμε την υπόλοιπη Ax² + Bx + C = 0 με τον γνωστό τύπο, για να βρούμε τις άλλες δύο ρίζες.',
+        step6_two: 'Δ > 0 → δύο ακόμα διακριτές πραγματικές ρίζες.',
+        step6_double: 'Δ = 0 → μία διπλή πραγματική ρίζα.',
+        step6_complex: 'Δ < 0 → οι άλλες δύο ρίζες είναι μιγαδικές συζυγείς.',
+        step7_title: 'Επαλήθευση',
+        step7_why: 'Αντικαθιστούμε κάθε πραγματική ρίζα στην αρχική εξίσωση για να επιβεβαιώσουμε ότι ισχύει.',
+        verify_complex_note: 'Οι μιγαδικές ρίζες δεν επαληθεύονται με πραγματική αντικατάσταση — ισχύουν αλγεβρικά από την κατασκευή.',
+        verify_lead: 'Αντικαθιστούμε {x} στην αρχική εξίσωση:',
+        noroot_title: 'Δεν εντοπίστηκε πραγματική ρίζα',
+        noroot_why: 'Μια κυβική έχει πάντα τουλάχιστον μία πραγματική ρίζα (περιττός βαθμός) — αν δεν βρέθηκε καμία εδώ, η ρίζα βρίσκεται πιθανώς εκτός του εύρους σάρωσης [−1000, 1000], ή είναι εξαιρετικά κοντά σε άλλη.',
+        ineq_step1_why: 'Ο μεγαλύτερος εκθέτης του x είναι 3, άρα δουλεύουμε με το πρόσημο μιας κυβικής συνάρτησης.',
+        ineq_step2_title: 'Γιατί λειτουργεί ο πίνακας προσήμων',
+        ineq_step2_why: 'Μια συνεχής συνάρτηση αλλάζει πρόσημο ΜΟΝΟ σε μια ρίζα. Άρα ανάμεσα σε δύο διαδοχικές ρίζες, το πρόσημο παραμένει σταθερό — αρκεί να το ελέγξουμε σε ένα σημείο του κάθε διαστήματος.',
+        ineq_step3_title: 'Εντοπισμός ριζών (κρίσιμα σημεία)',
+        ineq_step3_why: 'Χρησιμοποιούμε την ίδια αριθμητική σάρωση + Newton-Raphson για να βρούμε πού μηδενίζεται η f(x).',
+        ineq_no_roots: 'Δεν βρέθηκαν πραγματικές ρίζες — το πρόσημο της f(x) παραμένει σταθερό σε όλο το πεδίο ορισμού.',
+        ineq_step4_title: 'Πίνακας προσήμων',
+        ineq_step4_why: 'Δοκιμάζουμε ένα σημείο μέσα σε κάθε διάστημα ανάμεσα στις ρίζες, για να δούμε το πρόσημο της f(x) εκεί.',
+        ineq_step5_title: 'Επιλογή διαστημάτων',
+        ineq_step5_why: 'Κρατάμε μόνο τα διαστήματα όπου το πρόσημο ταιριάζει με αυτό που ζητά η ανίσωση.',
+        alt_method_title: 'Μέθοδος 2: Ρητές ρίζες (Rational Root Theorem)',
+        alt_intro: 'Πριν καταφύγουμε σε αριθμητικές μεθόδους, αξίζει να ελέγξουμε αν υπάρχει μια «καθαρή» ρητή ρίζα — αν η κυβική έχει ακέραιους συντελεστές, υπάρχει ένας γρήγορος έλεγχος.',
+        alt_step1_title: 'Το θεώρημα',
+        alt_step1_why: 'Αν η ax³+bx²+cx+d=0 έχει ακέραιους συντελεστές, κάθε ρητή ρίζα p/q (ανάγωγο κλάσμα) πρέπει να έχει p διαιρέτη του d και q διαιρέτη του a.',
+        alt_not_applicable: 'Εδώ a = {a}, d = {d} — δεν είναι και τα δύο ακέραιοι, άρα αυτός ο έλεγχος δεν εφαρμόζεται απευθείας. Μένουμε στην αριθμητική μέθοδο (Μέθοδος 1).',
+        alt_step2_title: 'Υποψήφιες ρίζες',
+        alt_step2_why: 'Χτίζουμε όλους τους πιθανούς λόγους ±p/q από τους διαιρέτες του d και του a, και τους δοκιμάζουμε έναν-έναν.',
+        alt_candidates_lead: 'Υποψήφιοι: {list}',
+        alt_no_rational: 'Κανένας υποψήφιος δεν επαληθεύει την εξίσωση — άρα δεν υπάρχει ρητή ρίζα εδώ. Αυτός είναι ακριβώς ο λόγος που χρειαζόμαστε την αριθμητική μέθοδο.',
+        alt_found_lead: '✓ Το x = {r} επαληθεύει την εξίσωση!',
+        alt_step3_title: 'Παραγοντοποίηση και επίλυση',
+        alt_step3_why: 'Αφού βρήκαμε τη ρητή ρίζα, διαιρούμε με (x − r) όπως στη Μέθοδο 1, για να λύσουμε την υπόλοιπη δευτεροβάθμια.',
+        alt_match_ok: '✓ Ίδιες ρίζες με τη Μέθοδο 1.'
+    },
+    en: {
+        step1_title: 'Identify the equation type',
+        step1_why: 'The highest power of x is 3 — so this is a cubic equation, of the form ax³ + bx² + cx + d = 0.',
+        step2_title: 'Why we need a numerical method',
+        step2_why: 'Unlike the quadratic, a cubic has no simple formula like "−b±√Δ/2a" typically taught in school. A formula exists (Cardano\'s) but it\'s complex. Instead we use a numerical method: since a cubic is odd-degree, its graph goes from −∞ to +∞ (or the reverse) — so it is guaranteed to cross the x-axis at least once.',
+        step3_title: 'Locate a sign change',
+        step3_why: 'If f(x) is continuous and changes sign between two points, the Intermediate Value Theorem guarantees at least one root between them.',
+        step3_work: 'f({lo}) = {flo},&nbsp;&nbsp;f({hi}) = {fhi} &nbsp;→&nbsp; opposite signs, so a root lies in ({lo}, {hi})',
+        step4_title: 'Refine with Newton-Raphson',
+        step4_why: 'Starting from an initial guess near the root, xₙ₊₁ = xₙ − f(xₙ)/f′(xₙ) converges quickly to the true root.',
+        step4_converge: '→ converges to x ≈ {root}',
+        step5a_title: 'Synthetic division',
+        step5a_why: 'Having found one root r, we divide the polynomial by (x − r) to get a quadratic with the remaining two roots.',
+        step5b_title: "Vieta's formula",
+        step5b_why: 'The sum of all three roots of a cubic always equals −b/a. Since the scan already found 2 of the 3 roots, the third follows immediately, no division needed.',
+        step5c_title: 'All three roots found directly',
+        step5c_why: 'The scan located all 3 real roots directly — repeating the same process (Steps 3-4) at each sign change. No further work is needed.',
+        step6_title: 'Solve the quadratic',
+        step6_why: 'We solve the remaining Ax² + Bx + C = 0 with the usual formula, to find the other two roots.',
+        step6_two: 'Δ > 0 → two more distinct real roots.',
+        step6_double: 'Δ = 0 → one repeated real root.',
+        step6_complex: 'Δ < 0 → the other two roots are complex conjugates.',
+        step7_title: 'Verify',
+        step7_why: 'We substitute each real root back into the original equation to confirm it holds.',
+        verify_complex_note: "Complex roots aren't verified by real substitution — they hold algebraically by construction.",
+        verify_lead: 'Substituting {x} into the original equation:',
+        noroot_title: 'No real root found',
+        noroot_why: 'A cubic always has at least one real root (odd degree) — if none was found here, it likely lies outside the scanned range [−1000, 1000], or extremely close to another root.',
+        ineq_step1_why: 'The highest power of x is 3, so we work with the sign of a cubic function.',
+        ineq_step2_title: 'Why the sign chart works',
+        ineq_step2_why: 'A continuous function changes sign ONLY at a root. So between two consecutive roots, the sign stays constant — we only need to test one point per interval.',
+        ineq_step3_title: 'Locate the roots (critical points)',
+        ineq_step3_why: 'We use the same numerical scan + Newton-Raphson refinement to find where f(x) crosses zero.',
+        ineq_no_roots: 'No real roots found — the sign of f(x) stays constant across the whole domain.',
+        ineq_step4_title: 'Sign chart',
+        ineq_step4_why: 'We test one point inside each interval between the roots, to see the sign of f(x) there.',
+        ineq_step5_title: 'Select the intervals',
+        ineq_step5_why: 'We keep only the intervals whose sign matches what the inequality asks for.',
+        alt_method_title: 'Method 2: Rational Root Theorem',
+        alt_intro: 'Before reaching for numerical methods, it\'s worth checking for a "clean" rational root — if the cubic has integer coefficients, there\'s a quick test.',
+        alt_step1_title: 'The theorem',
+        alt_step1_why: 'If ax³+bx²+cx+d=0 has integer coefficients, every rational root p/q (in lowest terms) must have p dividing d and q dividing a.',
+        alt_not_applicable: "Here a = {a}, d = {d} — not both integers, so this check doesn't apply directly. We stay with the numerical method (Method 1).",
+        alt_step2_title: 'Candidate roots',
+        alt_step2_why: 'We build every possible ratio ±p/q from the divisors of d and a, and test them one by one.',
+        alt_candidates_lead: 'Candidates: {list}',
+        alt_no_rational: 'None of the candidates satisfy the equation — so there is no rational root here. This is exactly why we need the numerical method.',
+        alt_found_lead: '✓ x = {r} satisfies the equation!',
+        alt_step3_title: 'Factor and solve',
+        alt_step3_why: 'Having found the rational root, we divide by (x − r) just like in Method 1, to solve the remaining quadratic.',
+        alt_match_ok: '✓ Same roots as Method 1.'
+    },
+    es: {
+        step1_title: 'Identificar el tipo de ecuación',
+        step1_why: 'El mayor exponente de x es 3 — así que es una ecuación cúbica, de la forma ax³ + bx² + cx + d = 0.',
+        step2_title: 'Por qué necesitamos un método numérico',
+        step2_why: 'A diferencia de la cuadrática, la cúbica no tiene una fórmula sencilla como «−b±√Δ/2a» que se enseña normalmente. Existe una fórmula (de Cardano) pero es compleja. En su lugar usamos un método numérico: como la cúbica es de grado impar, su gráfica va de −∞ a +∞ (o al revés) — así que garantizado cruza el eje x al menos una vez.',
+        step3_title: 'Localizar un cambio de signo',
+        step3_why: 'Si f(x) es continua y cambia de signo entre dos puntos, el Teorema del Valor Intermedio garantiza al menos una raíz entre ellos.',
+        step3_work: 'f({lo}) = {flo},&nbsp;&nbsp;f({hi}) = {fhi} &nbsp;→&nbsp; signos opuestos, así que hay una raíz en ({lo}, {hi})',
+        step4_title: 'Refinar con Newton-Raphson',
+        step4_why: 'Partiendo de una estimación inicial cercana a la raíz, xₙ₊₁ = xₙ − f(xₙ)/f′(xₙ) converge rápidamente a la raíz real.',
+        step4_converge: '→ converge a x ≈ {root}',
+        step5a_title: 'División sintética',
+        step5a_why: 'Habiendo encontrado una raíz r, dividimos el polinomio entre (x − r) para obtener una cuadrática con las dos raíces restantes.',
+        step5b_title: 'Fórmula de Vieta',
+        step5b_why: 'La suma de las tres raíces de una cúbica siempre es igual a −b/a. Como la búsqueda ya encontró 2 de las 3 raíces, la tercera se obtiene de inmediato, sin necesidad de dividir.',
+        step5c_title: 'Las tres raíces encontradas directamente',
+        step5c_why: 'La búsqueda localizó directamente las 3 raíces reales — repitiendo el mismo proceso (Pasos 3-4) en cada cambio de signo. No se necesita más trabajo.',
+        step6_title: 'Resolver la cuadrática',
+        step6_why: 'Resolvemos la Ax² + Bx + C = 0 restante con la fórmula habitual, para encontrar las otras dos raíces.',
+        step6_two: 'Δ > 0 → dos raíces reales distintas más.',
+        step6_double: 'Δ = 0 → una raíz real doble.',
+        step6_complex: 'Δ < 0 → las otras dos raíces son complejas conjugadas.',
+        step7_title: 'Verificar',
+        step7_why: 'Sustituimos cada raíz real en la ecuación original para confirmar que se cumple.',
+        verify_complex_note: 'Las raíces complejas no se verifican aquí por sustitución real — son válidas algebraicamente por construcción.',
+        verify_lead: 'Sustituyendo {x} en la ecuación original:',
+        noroot_title: 'No se encontró raíz real',
+        noroot_why: 'Una cúbica siempre tiene al menos una raíz real (grado impar) — si no se encontró ninguna aquí, probablemente esté fuera del rango de búsqueda [−1000, 1000], o muy cerca de otra raíz.',
+        ineq_step1_why: 'El mayor exponente de x es 3, así que trabajamos con el signo de una función cúbica.',
+        ineq_step2_title: 'Por qué funciona el cuadro de signos',
+        ineq_step2_why: 'Una función continua cambia de signo SOLO en una raíz. Así que entre dos raíces consecutivas, el signo permanece constante — basta con probar un punto por intervalo.',
+        ineq_step3_title: 'Localizar las raíces (puntos críticos)',
+        ineq_step3_why: 'Usamos la misma búsqueda numérica + refinamiento de Newton-Raphson para encontrar dónde f(x) cruza el cero.',
+        ineq_no_roots: 'No se encontraron raíces reales — el signo de f(x) permanece constante en todo el dominio.',
+        ineq_step4_title: 'Cuadro de signos',
+        ineq_step4_why: 'Probamos un punto dentro de cada intervalo entre las raíces, para ver el signo de f(x) allí.',
+        ineq_step5_title: 'Seleccionar los intervalos',
+        ineq_step5_why: 'Nos quedamos solo con los intervalos cuyo signo coincide con lo que pide la inecuación.',
+        alt_method_title: 'Método 2: Teorema de la raíz racional',
+        alt_intro: 'Antes de recurrir a métodos numéricos, vale la pena comprobar si hay una raíz racional «limpia» — si la cúbica tiene coeficientes enteros, hay una prueba rápida.',
+        alt_step1_title: 'El teorema',
+        alt_step1_why: 'Si ax³+bx²+cx+d=0 tiene coeficientes enteros, toda raíz racional p/q (en su mínima expresión) debe tener p divisor de d y q divisor de a.',
+        alt_not_applicable: 'Aquí a = {a}, d = {d} — no son ambos enteros, así que esta prueba no se aplica directamente. Nos quedamos con el método numérico (Método 1).',
+        alt_step2_title: 'Raíces candidatas',
+        alt_step2_why: 'Construimos todos los posibles cocientes ±p/q a partir de los divisores de d y de a, y los probamos uno por uno.',
+        alt_candidates_lead: 'Candidatos: {list}',
+        alt_no_rational: 'Ningún candidato satisface la ecuación — así que no hay raíz racional aquí. Esta es exactamente la razón por la que necesitamos el método numérico.',
+        alt_found_lead: '✓ ¡x = {r} satisface la ecuación!',
+        alt_step3_title: 'Factorizar y resolver',
+        alt_step3_why: 'Habiendo encontrado la raíz racional, dividimos entre (x − r) igual que en el Método 1, para resolver la cuadrática restante.',
+        alt_match_ok: '✓ Mismas raíces que el Método 1.'
+    }
+};
+
 /* ── S() step renderer ── */
 function S(type, params) {
     params = params || {};
@@ -811,6 +1262,435 @@ function verifyFmt(left, right, xv, yv) {
     } catch(e){ return ''; }
 }
 
+/* ── Quadratic tutor-mode helpers ── */
+function QT(key) {
+    var lang = MultiCalc.state.currentLang || 'el';
+    var d = MultiCalc.data.quadTutorText;
+    return (d[lang] && d[lang][key] !== undefined) ? d[lang][key] : ((d['en'] && d['en'][key]) || '['+key+']');
+}
+function fmtSP(n) { var s=fmtNum(n); return n<0 ? '('+s+')' : s; }
+function fmtPM(n) { return (n>=0?'+ ':'− ')+fmtNum(Math.abs(n)); }
+/* tFn optionally overrides which tutor-text dictionary's verify_lead
+   phrase to use (QT's quadTutorText by default, so every existing
+   call site — quadratic — is unaffected; linear passes LT). */
+function buildVerifyWork(left, right, x, subscript, tFn) {
+    tFn = tFn || QT;
+    var xLabel = 'x'+(subscript||'')+' = '+fmtNum(x);
+    return tFn('verify_lead').replace('{x}', xLabel) + '<br>' + verifyFmt(left, right, x);
+}
+/* Tolerant comparison against a comparison-operator string as used
+   throughout this file ('=','>','<','>=','<='), with the same 1e-6
+   float tolerance convention used elsewhere. Used wherever a constant
+   relation (no x term left to solve for) needs to be judged true or
+   false — e.g. a linear equation/inequality whose x-term cancels out
+   entirely, where "is it true" depends on the actual operator, not
+   just on whether the remaining constant is exactly zero. */
+function compareByOp(lv, rv, op) {
+    if (op==='>') return lv > rv + 1e-6;
+    if (op==='<') return lv < rv - 1e-6;
+    if (op==='>=') return lv >= rv - 1e-6;
+    if (op==='<=') return lv <= rv + 1e-6;
+    return Math.abs(lv-rv) < 1e-6;
+}
+/* Display symbol for a raw comparison op (mirrors splitOnOp's own
+   opDisplay mapping) — needed when an inequality's direction flips
+   mid-solve and a fresh display symbol has to be derived for the
+   flipped operator, which splitOnOp never sees directly. */
+function opDispOf(o) { return {'>':'>','<':'<','>=':'≥','<=':'≤','=':'='}[o] || o; }
+
+/* Builds the full "real tutor" step sequence for the discriminant method:
+   numbered steps with title + why + fully-expanded work (no hidden
+   intermediate arithmetic) + common-mistake warnings + explicit branch
+   reasoning + visible verification. extra (optional) carries the
+   inequality-interval data already computed by the caller, so this
+   doesn't re-derive it. */
+function buildQuadraticTutorSteps(sol, left, right, isInequality, extra) {
+    var a=sol.a, b=sol.b, c=sol.c;
+    var bSq=b*b, fourAC=4*a*c, disc=bSq-fourAC, twoA=2*a;
+    var main=[];
+    main.push({ title:QT('step1_title'), why:QT('step1_why'),
+        work: fmtNum(a)+'x² '+(b>=0?'+ ':'− ')+fmtNum(Math.abs(b))+'x '+(c>=0?'+ ':'− ')+fmtNum(Math.abs(c))+' = 0' });
+    main.push({ title:QT('step2_title'), why:QT('step2_why'), warning:QT('step2_warning'),
+        work: 'a = '+fmtNum(a)+',&nbsp;&nbsp; b = '+fmtNum(b)+',&nbsp;&nbsp; c = '+fmtNum(c) });
+    main.push({ title:QT('step3_title'), why:QT('step3_why'), warning:QT('step3_warning'),
+        work: 'Δ = b² − 4ac = '+fmtSP(b)+'² − 4×'+fmtSP(a)+'×'+fmtSP(c)+' = '+fmtNum(bSq)+' − '+fmtSP(fourAC)+' = '+fmtNum(disc) });
+    var branchText = disc>1e-9 ? QT('step4_pos') : (Math.abs(disc)<=1e-9 ? QT('step4_zero') : QT('step4_neg'));
+    main.push({ title:QT('step4_title'), why:QT('step4_why'), work: branchText });
+
+    if (sol.type==='complex') {
+        var re=-b/(2*a), imAbs=Math.sqrt(-disc)/(2*a);
+        main.push({ title:QT('step5_title'), why:QT('step5_why'),
+            work: 'x = (−b ± √Δ) / 2a = (−'+fmtSP(b)+' ± √'+fmtSP(disc)+') / '+fmtSP(twoA)+' = ('+fmtNum(-b)+' ± i√'+fmtNum(Math.abs(disc))+') / '+fmtNum(twoA)
+                +'<br>x₁ = '+fmtNum(re)+' + '+fmtNum(Math.abs(imAbs))+'i,&nbsp;&nbsp; x₂ = '+fmtNum(re)+' − '+fmtNum(Math.abs(imAbs))+'i' });
+        main.push({ title:QT('step6_title'), why:QT('step6_why'), work: QT('verify_complex_note') });
+    } else if (sol.type==='one') {
+        main.push({ title:QT('step5_title'), why:QT('step5_why'),
+            work: 'x = −b / 2a = −'+fmtSP(b)+' / '+fmtSP(twoA)+' = '+fmtNum(sol.x1) });
+        main.push({ title:QT('step6_title'), why:QT('step6_why'), work: buildVerifyWork(left,right,sol.x1) });
+    } else {
+        var sq=Math.sqrt(disc);
+        main.push({ title:QT('step5_title'), why:QT('step5_why'),
+            work: 'x = (−b ± √Δ) / 2a = (−'+fmtSP(b)+' ± √'+fmtNum(disc)+') / '+fmtSP(twoA)+' = ('+fmtNum(-b)+' ± '+fmtNum(sq)+') / '+fmtNum(twoA)
+                +'<br>x₁ = ('+fmtNum(-b)+' + '+fmtNum(sq)+') / '+fmtNum(twoA)+' = '+fmtNum(sol.x1)
+                +'<br>x₂ = ('+fmtNum(-b)+' − '+fmtNum(sq)+') / '+fmtNum(twoA)+' = '+fmtNum(sol.x2) });
+        main.push({ title:QT('step6_title'), why:QT('step6_why'),
+            work: buildVerifyWork(left,right,sol.x1,'₁') + '<br>' + buildVerifyWork(left,right,sol.x2,'₂') });
+        if (isInequality && extra) {
+            main.push({ title:QT('step7_title'), why:QT('step7_why'), work: extra.work });
+        }
+    }
+    return main;
+}
+
+/* Builds the "completing the square" alternative method — same a,b,c,
+   independently walked through algebraically, ending at the same
+   roots as the discriminant method (checked and flagged to the user). */
+function buildCompletingSquareSteps(sol) {
+    var a=sol.a, b=sol.b, c=sol.c;
+    var alt=[];
+    var bOverA=b/a, cOverA=c/a;
+    alt.push({ title:QT('alt_step1_title'), why:QT('alt_step1_why'),
+        work: 'x² + ('+fmtNum(bOverA)+')x + ('+fmtNum(cOverA)+') = 0' });
+    alt.push({ title:QT('alt_step2_title'), why:QT('alt_step2_why'),
+        work: 'x² + ('+fmtNum(bOverA)+')x = '+fmtNum(-cOverA) });
+    var halfB=bOverA/2, halfBSq=halfB*halfB;
+    alt.push({ title:QT('alt_step3_title'), why:QT('alt_step3_why'),
+        work: 'x² + ('+fmtNum(bOverA)+')x + '+fmtNum(halfBSq)+' = '+fmtNum(-cOverA)+' + '+fmtNum(halfBSq)+' = '+fmtNum(-cOverA+halfBSq) });
+    var rhs4=-cOverA+halfBSq;
+    alt.push({ title:QT('alt_step4_title'), why:QT('alt_step4_why'),
+        work: '(x '+fmtPM(halfB)+')² = '+fmtNum(rhs4)+'&nbsp;&nbsp;<small style="opacity:0.65;">('+QT('alt_match_note')+')</small>' });
+    var altX1, altX2, matchOk;
+    if (rhs4 < -1e-9) {
+        var reAlt=-halfB, imAlt=Math.sqrt(-rhs4);
+        alt.push({ title:QT('alt_step5_title'), why:QT('alt_step5_why'),
+            work: 'x '+fmtPM(halfB)+' = ±√('+fmtNum(rhs4)+') = ±i'+fmtNum(imAlt)+'<br>x = '+fmtNum(reAlt)+' ± '+fmtNum(imAlt)+'i' });
+        matchOk = sol.type==='complex' && Math.abs(reAlt-(-b/(2*a)))<1e-6 && Math.abs(imAlt-Math.sqrt(-sol.disc)/(2*a))<1e-6;
+    } else {
+        var sqrtRhs4=Math.sqrt(rhs4);
+        altX1=-halfB+sqrtRhs4; altX2=-halfB-sqrtRhs4;
+        if (Math.abs(sqrtRhs4)<1e-9) {
+            alt.push({ title:QT('alt_step5_title'), why:QT('alt_step5_why'),
+                work: 'x '+fmtPM(halfB)+' = 0&nbsp;&nbsp;→&nbsp;&nbsp; x = '+fmtNum(-halfB) });
+            matchOk = sol.type==='one' && Math.abs(-halfB-sol.x1)<1e-6;
+        } else {
+            alt.push({ title:QT('alt_step5_title'), why:QT('alt_step5_why'),
+                work: 'x '+fmtPM(halfB)+' = ±'+fmtNum(sqrtRhs4)+'<br>x₁ = '+fmtNum(altX1)+',&nbsp;&nbsp; x₂ = '+fmtNum(altX2) });
+            matchOk = sol.type==='two' &&
+                ((Math.abs(altX1-sol.x1)<1e-6 && Math.abs(altX2-sol.x2)<1e-6) ||
+                 (Math.abs(altX1-sol.x2)<1e-6 && Math.abs(altX2-sol.x1)<1e-6));
+        }
+    }
+    alt.push({ title:'', why:'', work: matchOk ? QT('alt_match_ok') : '' });
+    return alt;
+}
+
+/* ── Linear tutor-mode helpers ── */
+function LT(key) {
+    var lang = MultiCalc.state.currentLang || 'el';
+    var d = MultiCalc.data.linTutorText;
+    return (d[lang] && d[lang][key] !== undefined) ? d[lang][key] : ((d['en'] && d['en'][key]) || '['+key+']');
+}
+
+/* Decides, ONCE, the two branch questions every linear tutor step
+   (and the visible answer/html itself) needs to agree on:
+   - aZero / alwaysTrue: whether the x-term cancelled out entirely,
+     and if so whether the remaining constant relation is true. This
+     is judged with compareByOp against the ACTUAL operator (op), not
+     by checking b≈0 — b≈0 only decides truth for op='='. An
+     inequality like "x+5 < x+10" reduces to "5 < 10" (always true,
+     every real x is a solution) even though b=−5 here is nowhere
+     near 0 — the previous code conflated these and would have
+     wrongly reported "no solution" for cases like this.
+   - flipped/effectiveOp: whether dividing by a negative a flips an
+     inequality's direction, and what the resulting operator is. */
+function buildLinearCtx(sol, op, isInequality) {
+    var aZero = (sol.type === 'infinite' || sol.type === 'none');
+    var alwaysTrue = aZero ? compareByOp(sol.b, 0, op) : null;
+    var flipMap = {'>':'<','<':'>','>=':'<=','<=':'>='};
+    var flipped = !aZero && isInequality && sol.a < 0;
+    var effectiveOp = flipped ? (flipMap[op]||op) : op;
+    return {aZero:aZero, alwaysTrue:alwaysTrue, flipped:flipped, effectiveOp:effectiveOp};
+}
+
+/* Builds the full "real tutor" step sequence for Method 1 (collect
+   everything into standard form ax+b {op} 0, then isolate x) —
+   covers all 3 branches: a unique solution, "always true" (x cancels,
+   remaining constant statement holds), and "always false" (remaining
+   constant statement never holds). ctx is the shared decision from
+   buildLinearCtx, so this never re-derives it independently. */
+function buildLinearTutorSteps(sol, left, right, op, opDisplay, isInequality, ctx) {
+    var a=sol.a, b=sol.b;
+    var stdSymbol = isInequality ? opDisplay : '=';
+    var main=[];
+    main.push({ title:LT('step1_title'), why:LT('step1_why').replace('{op}', stdSymbol),
+        work: fmtNum(a)+'x '+(b>=0?'+ ':'− ')+fmtNum(Math.abs(b))+' '+stdSymbol+' 0' });
+    main.push({ title:LT('step2_title'), why:LT('step2_why'), warning:LT('step2_warning'),
+        work: 'a = '+fmtNum(a)+',&nbsp;&nbsp; b = '+fmtNum(b) });
+    main.push({ title:LT('step3_title'), why:LT('step3_why'),
+        work: ctx.aZero ? LT('step3_azero_lead').replace('{expr}', fmtNum(b)+' '+stdSymbol+' 0') : LT('step3_nonzero') });
+
+    if (ctx.aZero) {
+        var verdictExpr = fmtNum(b)+' '+stdSymbol+' 0';
+        main.push({ title:LT('step4_title'),
+            why: ctx.alwaysTrue ? LT('step4_azero_true_why').replace('{expr}', verdictExpr) : LT('step4_azero_false_why').replace('{expr}', verdictExpr),
+            work: verdictExpr+'&nbsp;&nbsp;→&nbsp;&nbsp;'+(ctx.alwaysTrue ? LT('step4_azero_true_verdict') : LT('step4_azero_false_verdict')) });
+        return main;
+    }
+
+    if (!isInequality) {
+        main.push({ title:LT('step4_isolate_title'), why:LT('step4_isolate_why_eq'),
+            work: 'x = −b / a = −'+fmtSP(b)+' / '+fmtSP(a)+' = '+fmtNum(sol.x) });
+        main.push({ title:LT('step5_title_eq'), why:LT('step5_why_eq'),
+            work: buildVerifyWork(left,right,sol.x,'',LT) });
+    } else {
+        var flipText = ctx.flipped
+            ? LT('step4_flip').replace('{a}',fmtNum(a)).replace('{op}',opDisplay).replace('{newOp}',opDispOf(ctx.effectiveOp))
+            : LT('step4_noflip').replace('{a}',fmtNum(a));
+        main.push({ title:LT('step4_isolate_title'), why:LT('step4_isolate_why_ineq'), warning: ctx.flipped?LT('step4_isolate_warning_ineq'):undefined,
+            work: flipText+'<br>x = −b / a = −'+fmtSP(b)+' / '+fmtSP(a)+' = '+fmtNum(sol.x)+'&nbsp;&nbsp;→&nbsp;&nbsp;x '+opDispOf(ctx.effectiveOp)+' '+fmtNum(sol.x) });
+        var di=describeInterval(ctx.effectiveOp, sol.x);
+        main.push({ title:LT('step5_title_ineq'), why:LT('step5_why_ineq'), work: di.interval });
+        var dirSign = (ctx.effectiveOp==='>'||ctx.effectiveOp==='>=') ? 1 : -1;
+        var xIn=sol.x+dirSign, xOut=sol.x-dirSign;
+        var lvIn=safeEval(left,xIn), rvIn=safeEval(right,xIn);
+        var lvOut=safeEval(left,xOut), rvOut=safeEval(right,xOut);
+        var holdsIn=compareByOp(lvIn,rvIn,op), holdsOut=compareByOp(lvOut,rvOut,op);
+        main.push({ title:LT('step6_title_ineq'), why:LT('step6_why_ineq'),
+            work: '<span class="'+(holdsIn?'eq-check':'eq-warn')+'">x = '+fmtNum(xIn)+' '+LT('check_inside_label')+': '+parseFloat(lvIn.toFixed(6))+' '+opDisplay+' '+parseFloat(rvIn.toFixed(6))+' → '+(holdsIn?LT('holds_true'):LT('holds_false'))+'</span>'
+                +'<br><span class="'+(!holdsOut?'eq-check':'eq-warn')+'">x = '+fmtNum(xOut)+' '+LT('check_outside_label')+': '+parseFloat(lvOut.toFixed(6))+' '+opDisplay+' '+parseFloat(rvOut.toFixed(6))+' → '+(holdsOut?LT('holds_true'):LT('holds_false'))+'</span>' });
+    }
+    return main;
+}
+
+/* Builds the "balance method" alternative — instead of combining
+   everything into standard form up front, keeps the two original
+   sides separate and narrates one "do the same thing to both sides"
+   operation per step (the way many schools first teach solving
+   equations, before introducing the faster "collect terms" shortcut
+   Method 1 uses). Always lands on the identical a, b, x as Method 1
+   — same underlying arithmetic, different narration — which is
+   exactly the point: showing two ways of thinking arrive at one
+   answer. */
+function buildLinearBalanceSteps(sol, left, right, op, opDisplay, isInequality, ctx) {
+    var stdSymbol = isInequality ? opDisplay : '=';
+    var leftB=safeEval(left,0), leftA=safeEval(left,1)-leftB;
+    var rightB=safeEval(right,0), rightA=safeEval(right,1)-rightB;
+    var alt=[];
+    alt.push({ title:LT('alt_step1_title'), why:LT('alt_step1_why'),
+        work: fmtNum(leftA)+'x '+(leftB>=0?'+ ':'− ')+fmtNum(Math.abs(leftB))+' '+stdSymbol+' '+fmtNum(rightA)+'x '+(rightB>=0?'+ ':'− ')+fmtNum(Math.abs(rightB)) });
+    alt.push({ title:LT('alt_step2_title'), why:LT('alt_step2_why'),
+        work: LT('alt_step2_lead').replace('{term}', fmtSP(rightA)+'x')+'<br>'
+            + fmtNum(sol.a)+'x '+(leftB>=0?'+ ':'− ')+fmtNum(Math.abs(leftB))+' '+stdSymbol+' '+fmtNum(rightB) });
+    alt.push({ title:LT('alt_step3_title'), why:LT('alt_step3_why'),
+        work: LT('alt_step3_lead').replace('{term}', fmtSP(leftB))+'<br>'
+            + fmtNum(sol.a)+'x '+stdSymbol+' '+fmtNum(-sol.b) });
+
+    if (ctx.aZero) {
+        var verdictExpr = fmtNum(sol.b)+' '+stdSymbol+' 0';
+        alt.push({ title:LT('step4_title'),
+            why: ctx.alwaysTrue ? LT('step4_azero_true_why').replace('{expr}', verdictExpr) : LT('step4_azero_false_why').replace('{expr}', verdictExpr),
+            work: verdictExpr+'&nbsp;&nbsp;→&nbsp;&nbsp;'+(ctx.alwaysTrue?LT('step4_azero_true_verdict'):LT('step4_azero_false_verdict')) });
+        alt.push({ title:'', why:'', work: LT('alt_match_ok') });
+        return alt;
+    }
+
+    if (!isInequality) {
+        alt.push({ title:LT('alt_step4_title'), why:LT('step4_isolate_why_eq'),
+            work: 'x = '+fmtNum(-sol.b)+' / '+fmtSP(sol.a)+' = '+fmtNum(sol.x) });
+    } else {
+        var flipText = ctx.flipped
+            ? LT('step4_flip').replace('{a}',fmtNum(sol.a)).replace('{op}',opDisplay).replace('{newOp}',opDispOf(ctx.effectiveOp))
+            : LT('step4_noflip').replace('{a}',fmtNum(sol.a));
+        alt.push({ title:LT('alt_step4_title'), why:LT('step4_isolate_why_ineq'), warning: ctx.flipped?LT('step4_isolate_warning_ineq'):undefined,
+            work: flipText+'<br>x = '+fmtNum(-sol.b)+' / '+fmtSP(sol.a)+' = '+fmtNum(sol.x)+'&nbsp;&nbsp;→&nbsp;&nbsp;x '+opDispOf(ctx.effectiveOp)+' '+fmtNum(sol.x) });
+    }
+    alt.push({ title:'', why:'', work: LT('alt_match_ok') });
+    return alt;
+}
+
+/* ── Cubic tutor-mode helpers ── */
+function CT(key) {
+    var lang = MultiCalc.state.currentLang || 'el';
+    var d = MultiCalc.data.cubTutorText;
+    return (d[lang] && d[lang][key] !== undefined) ? d[lang][key] : ((d['en'] && d['en'][key]) || '['+key+']');
+}
+/* Fills every {placeholder} occurrence in a template string — unlike
+   chained .replace('{x}',...) calls, which only replace the FIRST
+   occurrence of each placeholder and silently leave any repeat
+   unfilled (a real bug hit by step3_work below, where {lo} and {hi}
+   each appear twice). */
+function fillTpl(str, repl) {
+    return str.replace(/\{(\w+)\}/g, function(m,k){ return (k in repl) ? repl[k] : m; });
+}
+function cubStdForm(a,b,c,d,relSymbol) {
+    return fmtNum(a)+'x³ '+(b>=0?'+ ':'− ')+fmtNum(Math.abs(b))+'x² '+(c>=0?'+ ':'− ')+fmtNum(Math.abs(c))+'x '+(d>=0?'+ ':'− ')+fmtNum(Math.abs(d))+' '+relSymbol+' 0';
+}
+function quadStdForm(A,B,C,relSymbol) {
+    return fmtNum(A)+'x² '+(B>=0?'+ ':'− ')+fmtNum(Math.abs(B))+'x '+(C>=0?'+ ':'− ')+fmtNum(Math.abs(C))+' '+relSymbol+' 0';
+}
+function cubSolveDeflatedQuadratic(A,B,C) {
+    var discQ=B*B-4*A*C, realRoots=[], work='Δ = B² − 4AC = '+fmtSP(B)+'² − 4×'+fmtSP(A)+'×'+fmtSP(C)+' = '+fmtNum(discQ)+'<br>';
+    if (discQ > 1e-6) {
+        var s=Math.sqrt(discQ), r1=(-B+s)/(2*A), r2=(-B-s)/(2*A);
+        realRoots=[r1,r2];
+        work += CT('step6_two')+'<br>x = (−B ± √Δ) / 2A = '+fmtNum(r1)+', '+fmtNum(r2);
+    } else if (discQ > -1e-6) {
+        var r=-B/(2*A); realRoots=[r];
+        work += CT('step6_double')+'<br>x = −B / 2A = '+fmtNum(r);
+    } else {
+        var re=-B/(2*A), im=Math.sqrt(-discQ)/(2*A);
+        work += CT('step6_complex')+'<br>x = '+fmtNum(re)+' ± '+fmtNum(im)+'i';
+    }
+    return {realRoots:realRoots, discQ:discQ, work:work};
+}
+
+/* Method 1: the numerical method solveCubicEq actually uses (sign-
+   change scan + Newton-Raphson), narrated honestly step by step, then
+   completed with whichever of the 3 genuinely different follow-ups
+   applies: synthetic division into a quadratic (scan found exactly 1
+   root), Vieta's sum-of-roots shortcut (scan found exactly 2 — the
+   3rd is immediate, no division needed), or nothing further (scan
+   found all 3 directly). scanRoots is the pre-completion root list
+   (see solveCubicEq) — this is what decides which of the 3 applies,
+   NOT the final post-completion root count. */
+function buildCubicTutorSteps(fn, left, right, scanRoots, completed) {
+    var co=extractCubicCoeffs(fn), a=co.a,b=co.b,c=co.c,d=co.d;
+    var n=0; function TT(suf){ n++; return stepTitle(n, suf); }
+    var main=[];
+    main.push({ title:TT(CT('step1_title')), why:CT('step1_why'), work: cubStdForm(a,b,c,d,'=') });
+    main.push({ title:TT(CT('step2_title')), why:CT('step2_why'),
+        work: 'lim(x→−∞) f(x) = '+(a>0?'−∞':'+∞')+',&nbsp;&nbsp; lim(x→+∞) f(x) = '+(a>0?'+∞':'−∞') });
+
+    var r0=scanRoots[0];
+    var brk=findIntegerBracket(fn, r0);
+    main.push({ title:TT(CT('step3_title')), why:CT('step3_why'),
+        work: fillTpl(CT('step3_work'), {lo:fmtNum(brk.lo), flo:fmtNum(brk.flo), hi:fmtNum(brk.hi), fhi:fmtNum(brk.fhi)}) });
+
+    var dfn=makeNumericDeriv(fn);
+    var x0 = Math.abs(dfn(brk.hi))>1e-9 ? brk.hi : brk.lo;
+    var iters=runNewtonDemo(fn,dfn,x0,r0);
+    var iterLines=iters.map(function(it,i){ return 'x'+subIdx(i)+' = '+fmtNum(it.x)+',&nbsp; f(x'+subIdx(i)+') = '+fmtNum(it.fx); }).join('<br>');
+    main.push({ title:TT(CT('step4_title')), why:CT('step4_why'),
+        work: iterLines+'<br>'+fillTpl(CT('step4_converge'), {root:fmtNum(r0)}) });
+
+    var localRoots=[r0];
+    if (scanRoots.length===1) {
+        var A=a, B=b+a*r0, C=c+(b+a*r0)*r0;
+        main.push({ title:TT(CT('step5a_title')), why:CT('step5a_why'),
+            work: 'A = '+fmtNum(A)+',&nbsp;&nbsp;B = '+fmtNum(B)+',&nbsp;&nbsp;C = '+fmtNum(C)+'<br>'+quadStdForm(A,B,C,'=') });
+        var q=cubSolveDeflatedQuadratic(A,B,C);
+        localRoots=localRoots.concat(q.realRoots);
+        main.push({ title:TT(CT('step6_title')), why:CT('step6_why'), work:q.work });
+    } else if (scanRoots.length===2) {
+        var r1=scanRoots[0], r2=scanRoots[1], sum=-b/a, r3=sum-r1-r2;
+        localRoots=[r1,r2,r3];
+        main.push({ title:TT(CT('step5b_title')), why:CT('step5b_why'),
+            work: 'x₁+x₂+x₃ = −b/a = '+fmtNum(sum)+'<br>x₃ = '+fmtNum(sum)+' − ('+fmtSP(r1)+') − ('+fmtSP(r2)+') = '+fmtNum(r3) });
+    } else {
+        localRoots=scanRoots.slice(0,3);
+        main.push({ title:TT(CT('step5c_title')), why:CT('step5c_why'),
+            work: localRoots.map(function(r,i){return 'x'+subIdx(i+1)+' = '+fmtNum(r);}).join(',&nbsp;&nbsp;') });
+    }
+
+    var realForVerify=localRoots.filter(function(v){return typeof v==='number'&&isFinite(v);});
+    var verifyWork=realForVerify.map(function(r,i){ return buildVerifyWork(left,right,r,realForVerify.length>1?subIdx(i+1):'',CT); }).join('<br>');
+    if (completed && completed.complex) verifyWork += (verifyWork?'<br>':'')+CT('verify_complex_note');
+    main.push({ title:TT(CT('step7_title')), why:CT('step7_why'), work: verifyWork });
+    return main;
+}
+
+/* Method 2 (Rational Root Theorem) — entirely self-contained: works
+   straight from fn via extractCubicCoeffs, independent of whatever
+   Method 1 already found. knownRealRoots is used ONLY for the final
+   match-confirmation line, not for anything upstream of it — so this
+   is a genuine second way of finding the roots, not a restatement of
+   the first. Reused as-is for both the equation and inequality
+   branches (an inequality's critical points are exactly the roots a
+   root-finding method like this one would produce). */
+function buildCubicRRTSteps(fn, knownRealRoots) {
+    var co=extractCubicCoeffs(fn), a=co.a,b=co.b,c=co.c,d=co.d;
+    var n=0; function TT(suf){ n++; return stepTitle(n, suf); }
+    var alt=[];
+    alt.push({ title:TT(CT('alt_step1_title')), why:CT('alt_step1_why'),
+        work: 'p | '+fmtNum(Math.round(d))+',&nbsp;&nbsp; q | '+fmtNum(Math.round(a)) });
+
+    if (!isNearInt(a) || !isNearInt(d) || Math.round(a)===0) {
+        alt.push({ title:TT(CT('alt_step2_title')), why:'',
+            work: fillTpl(CT('alt_not_applicable'), {a:fmtNum(a), d:fmtNum(d)}) });
+        return alt;
+    }
+
+    var cands=rationalRootCandidates(Math.round(a), Math.round(d));
+    var displayCands=cands.slice(0,10);
+    var found=null;
+    for (var i=0;i<cands.length;i++){ if (Math.abs(fn(cands[i]))<1e-4) { found=cands[i]; break; } }
+    var candWork=fillTpl(CT('alt_candidates_lead'), {list: displayCands.map(fmtNum).join(', ')+(cands.length>displayCands.length?', …':'')});
+    alt.push({ title:TT(CT('alt_step2_title')), why:CT('alt_step2_why'), work: candWork });
+
+    if (found===null) {
+        alt.push({ title:'', why:'', work: CT('alt_no_rational') });
+        return alt;
+    }
+
+    var r0=found, A=a, B=b+a*r0, C=c+(b+a*r0)*r0;
+    var q=cubSolveDeflatedQuadratic(A,B,C);
+    var altRoots=[r0].concat(q.realRoots);
+    alt.push({ title:TT(CT('alt_step3_title')), why:CT('alt_step3_why'),
+        work: fillTpl(CT('alt_found_lead'), {r:fmtNum(r0)})+'<br>'+quadStdForm(A,B,C,'=')+'<br>'+q.work });
+
+    var sortedAlt=altRoots.slice().sort(function(x,y){return x-y;});
+    var sortedKnown=knownRealRoots.slice().sort(function(x,y){return x-y;});
+    var matchOk = sortedAlt.length===sortedKnown.length && sortedAlt.every(function(v,i){return Math.abs(v-sortedKnown[i])<1e-3;});
+    alt.push({ title:'', why:'', work: matchOk?CT('alt_match_ok'):'' });
+    return alt;
+}
+
+/* Sign-chart narrative for a cubic inequality: same critical-point
+   data solveCubicEq's inequality branch already computes (via
+   findFunctionCriticalPoints), just walked through step by step
+   instead of only used to compute the final answer silently. */
+function buildCubicIneqTutorSteps(fn, critical, op) {
+    var co=extractCubicCoeffs(fn), a=co.a,b=co.b,c=co.c,d=co.d;
+    var n=0; function TT(suf){ n++; return stepTitle(n, suf); }
+    var main=[];
+    main.push({ title:TT(CT('step1_title')), why:CT('ineq_step1_why'), work: cubStdForm(a,b,c,d,opDispOf(op)) });
+    main.push({ title:TT(CT('ineq_step2_title')), why:CT('ineq_step2_why'), work:'' });
+
+    var roots=critical.filter(function(cr){return cr.kind==='root';});
+    var pointsWork = roots.length ? roots.map(function(r){return fmtNum(r.x);}).join(', ') : CT('ineq_no_roots');
+    main.push({ title:TT(CT('ineq_step3_title')), why:CT('ineq_step3_why'), work: pointsWork });
+
+    var nSeg=critical.length, rows=[];
+    for (var k=0;k<=nSeg;k++){
+        var lo=k===0?-Infinity:critical[k-1].x, hi=k===nSeg?Infinity:critical[k].x;
+        var mid=(isFinite(lo)&&isFinite(hi))?(lo+hi)/2:(isFinite(lo)?lo+1:(isFinite(hi)?hi-1:0));
+        var val=fn(mid);
+        var sign=isFinite(val)?(val>0?'+':'−'):'?';
+        var matches=isFinite(val)&&(((op==='>'||op==='>=')&&val>0)||((op==='<'||op==='<=')&&val<0));
+        var lbl=(isFinite(lo)?fmtNum(lo):'−∞')+', '+(isFinite(hi)?fmtNum(hi):'+∞');
+        rows.push('('+lbl+'):&nbsp; f('+fmtNum(mid)+') '+sign+(matches?'&nbsp;✓':''));
+    }
+    main.push({ title:TT(CT('ineq_step4_title')), why:CT('ineq_step4_why'), work: rows.join('<br>') });
+
+    var segs=buildSignChartSegments(fn, critical, op);
+    main.push({ title:TT(CT('ineq_step5_title')), why:CT('ineq_step5_why'), work: formatIntervalUnion(segs, T('eqNoSolutionSet')) });
+    return main;
+}
+
+/* Minimal honest treatment for the rare case where the numerical
+   scan found no real root at all within its range. Mathematically a
+   cubic always has one (odd degree, IVT) — so this branch is really
+   a numerical-range limitation, not a distinct mathematical case, and
+   there is no second method worth demonstrating against it. */
+function buildCubicNoRootSteps(fn) {
+    var co=extractCubicCoeffs(fn), a=co.a,b=co.b,c=co.c,d=co.d;
+    var n=0; function TT(suf){ n++; return stepTitle(n, suf); }
+    return [
+        { title:TT(CT('step1_title')), why:CT('step1_why'), work: cubStdForm(a,b,c,d,'=') },
+        { title:TT(CT('noroot_title')), why:CT('noroot_why'), work:'' }
+    ];
+}
+
 function splitOnOp(input) {
     var ops = [['>=','≥'],['<=','≤'],['>','>'],[' < ',' < '],['<','<'],['=','=']];
     for (var i=0; i<ops.length; i++) {
@@ -826,7 +1706,7 @@ function solveLinearExpr(left, right) {
     var f0=f(0), f1=f(1), f2=f(2);
     var a=f1-f0, b=f0;
     if (Math.abs(f2-(2*a+b)) > 1e-6) return null;
-    if (Math.abs(a) < 1e-12) return Math.abs(b)<1e-8 ? {type:'infinite'} : {type:'none'};
+    if (Math.abs(a) < 1e-12) return Math.abs(b)<1e-8 ? {type:'infinite', a:a, b:b} : {type:'none', a:a, b:b};
     return {type:'linear', x:-b/a, a:a, b:b};
 }
 
@@ -949,20 +1829,18 @@ function solveEquationImpl() {
             var aS=fmtNum(sol.a),bS=fmtNum(sol.b),cS=fmtNum(sol.c);
             var aT=fmtNumTex(sol.a),bT=fmtNumTex(sol.b),cT=fmtNumTex(sol.c);
             var stdFormTex=aT+'x^2 '+(sol.b>=0?'+ ':'')+bT+'x '+(sol.c>=0?'+ ':'')+cT+' = 0';
+            var discVal = sol.b*sol.b - 4*sol.a*sol.c;
             var html='<div class="eq-answer">'+T('eqQuadTitle')+'</div>';
-            html+='<div class="eq-block">'+T('eqStandardForm')+' '+KX(stdFormTex)+'<br>'+KX('\\Delta = b^2 - 4ac = '+fmtNumTex(sol.disc))+'</div>';
-            var quadSteps=[S('step_quad_coeffs',{a:aS,b:bS,c:cS}),S('step_quad_disc',{b:bS,a:aS,c:cS,disc:fmtNum(sol.disc)})];
+            html+='<div class="eq-block">'+T('eqStandardForm')+' '+KX(stdFormTex)+'<br>'+KX('\\Delta = b^2 - 4ac = '+fmtNumTex(discVal))+'</div>';
+            var quadExtra=null;
             if (sol.type==='complex') {
                 var re=fmtNumTex(sol.re),im=fmtNumTex(Math.abs(sol.im));
                 html+='<div class="eq-answer">'+KX('x_1 = '+re+' + '+im+'i',true)+'</div><div class="eq-answer">'+KX('x_2 = '+re+' - '+im+'i',true)+'</div>';
                 html+='<div class="eq-block eq-warn">⚠️ '+T('eqNoRealRootsDelta')+'</div>';
-                quadSteps.push(S('step_quad_complex',{nb:fmtNum(-sol.b),absDisc:fmtNum(Math.abs(sol.disc)),ta:fmtNum(2*sol.a)}));
             } else if (sol.type==='one') {
                 html+='<div class="eq-answer">'+KX('x = '+fmtNumTex(sol.x1),true)+' <small>'+T('eqDoubleRoot')+'</small></div>';
                 html+='<div class="eq-block">'+verifyFmt(left,right,sol.x1)+'</div>';
-                quadSteps.push(S('step_quad_double',{x:fmtNum(sol.x1)}));
             } else {
-                quadSteps.push(S('step_quad_two',{x1:fmtNum(sol.x1),x2:fmtNum(sol.x2)}));
                 if (isInequality) {
                     var x1r=sol.x1<sol.x2?sol.x1:sol.x2, x2r=sol.x1<sol.x2?sol.x2:sol.x1;
                     var mid=(x1r+x2r)/2, fMid=mkFn(left,right)(mid);
@@ -971,13 +1849,16 @@ function solveEquationImpl() {
                     var interval=inner?(bl?'[':'(')+fmtNum(x1r)+', '+fmtNum(x2r)+(br?']':')'):'(−∞, '+fmtNum(x1r)+(br?']':')')+'  ∪ '+(bl?'[':'(')+fmtNum(x2r)+', +∞)';
                     html+='<div class="eq-answer">'+interval+'</div>';
                     html+='<div class="eq-block">'+T('eq_roots')+': '+KX('x_1='+fmtNumTex(x1r)+',\\ x_2='+fmtNumTex(x2r))+'</div>';
-                    quadSteps.push(S('step_quad_interval',{x1:fmtNum(x1r),x2:fmtNum(x2r),interval:interval}));
+                    quadExtra={work:'f('+fmtNum(mid)+') '+(fMid<0?'&lt; 0':'&gt; 0')+' → '+(inner?QT('step7_between'):QT('step7_outside'))+' → '+interval};
                 } else {
                     html+='<div class="eq-answer">'+KX('x_1 = '+fmtNumTex(sol.x1),true)+'</div><div class="eq-answer">'+KX('x_2 = '+fmtNumTex(sol.x2),true)+'</div>';
                     html+='<div class="eq-block">'+verifyFmt(left,right,sol.x1)+'<br>'+verifyFmt(left,right,sol.x2)+'</div>';
                 }
             }
-            displaySteps(quadSteps); finishEqResult(result, html);
+            var quadMainSteps=buildQuadraticTutorSteps(sol,left,right,isInequality,quadExtra);
+            var quadAltSteps=buildCompletingSquareSteps(sol);
+            displaySteps(quadMainSteps, quadAltSteps, QT('method_square_title'));
+            finishEqResult(result, html);
         } else {
             showLinear(left,right,op,opDisplay,result,isInequality);
         }
@@ -1016,6 +1897,79 @@ function extractCubicCoeffs(fn) {
      see, e.g. (x-1)^2(x+2)) or a genuine complex-conjugate pair.
    - 2 known real roots: the third is forced by Vieta's formula
      (sum of roots = -b/a) — always real, no need to deflate at all. */
+/* ── Cubic tutor-mode numeric helpers ── */
+function isNearInt(v) { return Math.abs(v-Math.round(v)) < 1e-6; }
+
+function divisorsOf(n) {
+    n = Math.abs(Math.round(n));
+    if (n === 0) return [1];
+    var divs=[];
+    for (var i=1; i<=n; i++) { if (n % i === 0) divs.push(i); }
+    return divs;
+}
+
+/* Rational Root Theorem candidate list: every ±p/q with p a divisor
+   of d and q a divisor of a. d=0 is handled as a special case (x=0 is
+   then trivially a root — "p divides 0" is true for every integer p,
+   so restricting to actual divisors of 0 doesn't make sense; we just
+   make sure 0 itself is tested). */
+function rationalRootCandidates(a, d) {
+    var cands=[], seen={};
+    function add(v){ var k=v.toFixed(9); if(!seen[k]){seen[k]=true; cands.push(v);} }
+    if (Math.round(d) === 0) add(0);
+    var pDivs=divisorsOf(d===0?1:d), qDivs=divisorsOf(a);
+    pDivs.forEach(function(p){ qDivs.forEach(function(q){ add(p/q); add(-p/q); }); });
+    cands.sort(function(x,y){ return Math.abs(x)-Math.abs(y) || x-y; });
+    return cands;
+}
+
+/* Finds an integer bracket [lo,hi] around a known real root where
+   fn(lo) and fn(hi) have opposite signs — used to illustrate the
+   Intermediate Value Theorem step with clean, readable numbers
+   instead of the (usually ugly) exact bracket the internal 0.1-step
+   scan happened to land on. */
+function findIntegerBracket(fn, root) {
+    var lo=Math.floor(root), hi=Math.ceil(root);
+    if (lo===hi) hi=lo+1;
+    var flo=fn(lo), fhi=fn(hi);
+    for (var w=1; w<=6 && !(isFinite(flo)&&isFinite(fhi)&&flo*fhi<0); w++) {
+        lo=Math.floor(root)-w; hi=Math.ceil(root)+w;
+        flo=fn(lo); fhi=fn(hi);
+    }
+    return {lo:lo, hi:hi, flo:flo, fhi:fhi};
+}
+
+/* Runs real Newton-Raphson iterations from x0 toward targetRoot,
+   stopping once within 1e-6 of it (or after 6 iterations as a
+   safety cap) — used to show a genuine, honest convergence demo
+   with real numbers, not a fabricated one. */
+function runNewtonDemo(fn, dfn, x0, targetRoot) {
+    var iters=[], x=x0;
+    for (var i=0; i<6; i++) {
+        var fx=fn(x);
+        iters.push({x:x, fx:fx});
+        if (Math.abs(x-targetRoot) < 1e-6) break;
+        var dfx=dfn(x);
+        if (Math.abs(dfx) < 1e-12) break;
+        x = x - fx/dfx;
+    }
+    return iters;
+}
+
+var _SUBDIGITS=['₀','₁','₂','₃','₄','₅','₆','₇','₈','₉'];
+function subIdx(i) { return String(i).split('').map(function(ch){return _SUBDIGITS[+ch]||ch;}).join(''); }
+
+/* Builds a step title with a dynamically-computed step number,
+   reusing the already-translated 'eq_step_prefix' word (Βήμα/Step/
+   Paso). Needed because cubic's step count/order varies by branch
+   (1 root found by the scan vs 2 vs 3), unlike quadratic/linear's
+   fixed-length sequences where the step number could safely be
+   baked directly into the stored translation string. */
+function stepTitle(n, suffix) {
+    var t=_eqTranslations[MultiCalc.state.currentLang]||_eqTranslations['en'];
+    return (t.eq_step_prefix||'Step')+' '+n+': '+suffix;
+}
+
 function completeCubicRoots(fn, realRoots) {
     if (realRoots.length >= 3) return {extraReal:[], complex:null};
     var co=extractCubicCoeffs(fn), a=co.a, b=co.b, c=co.c;
@@ -1041,11 +1995,9 @@ function solveCubicEq(left, right, op, isInequality, result) {
         var htmlC='<div class="eq-answer">'+T('eqCubicIneqTitle')+'</div>';
         htmlC+='<div class="eq-answer">'+intervalC+'</div>';
         if (rootsC.length) htmlC+='<div class="eq-block">'+T('eq_roots')+': '+KX(rootsC.map(function(r,i){return 'x_'+(i+1)+'='+fmtNumTex(r.x);}).join(',\\ '))+'</div>';
-        displaySteps([
-            S('step_cubic_recognize'),
-            S('step_cubic_move',{left:left,right:right}),
-            S('step_rat_ineq_signchart')
-        ]);
+        var ineqMain=buildCubicIneqTutorSteps(fn, criticalC, op);
+        var ineqAlt=buildCubicRRTSteps(fn, rootsC.map(function(r){return r.x;}));
+        displaySteps(ineqMain, ineqAlt, CT('alt_method_title'), CT('alt_intro'));
         result.innerHTML=htmlC; revealEqResult(result);
         return;
     }
@@ -1063,10 +2015,11 @@ function solveCubicEq(left, right, op, isInequality, result) {
     }
     roots.sort(function(a,b){return a-b;});
     if (!roots.length) {
-        displaySteps([S('step_cubic_recognize'),S('step_cubic_move',{left:left,right:right}),S('step_cubic_none')]);
+        displaySteps(buildCubicNoRootSteps(fn));
         result.innerHTML='<div class="eq-block eq-warn">'+T('eqCubicNoRoots')+'</div>';
         revealEqResult(result); return;
     }
+    var scanRoots=roots.slice();
 
     var completed=completeCubicRoots(fn,roots), complexPair=completed.complex;
     completed.extraReal.forEach(function(r){
@@ -1075,9 +2028,9 @@ function solveCubicEq(left, right, op, isInequality, result) {
     roots.sort(function(a,b){return a-b;});
     var totalCount = complexPair ? 3 : roots.length;
 
-    var baseSteps=[S('step_cubic_recognize'),S('step_cubic_move',{left:left,right:right}),S('step_cubic_scan'),S('step_cubic_dedup'),S('step_cubic_result',{roots:roots.map(fmtNum).join(', ')})];
-    if (completed.extraReal.length || complexPair) baseSteps.push(S('step_cubic_deflate',{r:fmtNum(roots[0])}));
-    displaySteps(baseSteps);
+    var cubMain=buildCubicTutorSteps(fn,left,right,scanRoots,completed);
+    var cubAlt=buildCubicRRTSteps(fn, roots);
+    displaySteps(cubMain, cubAlt, CT('alt_method_title'), CT('alt_intro'));
 
     var titleFn=T('eqCubicTitle');
     var html='<div class="eq-answer">'+(typeof titleFn==='function'?titleFn(totalCount):titleFn)+'</div>';
@@ -1277,27 +2230,22 @@ function solveSystem3(eq1,eq2,eq3,result) {
 function showLinear(left,right,op,opDisplay,result,isInequality) {
     var sol=solveLinearExpr(left,right); if(!sol) throw new Error('not_linear');
     var html='';
-    var t=_eqTranslations[MultiCalc.state.currentLang]||_eqTranslations['en'];
-    var steps=[S('step_recognize',{eqType:t.eqLinear||'Linear',kind:isInequality?(t.eq_inequality_word||'inequality'):(t.eq_equation||'equation')}),S('step_move_terms',{left:left,right:right}),S('step_simplify',{expr:fmtNum(sol.a||0)+'x '+(sol.b>=0?'+ ':'- ')+fmtNum(Math.abs(sol.b||0))})];
-    if (sol.type==='infinite'){steps.push(S('step_identity_true'));html='<div class="eq-answer eq-check">'+T('eqInfSolutions')+'</div><div class="eq-block">'+T('eqIdentityTrue')+'</div>';}
-    else if (sol.type==='none'){steps.push(S('step_identity_false'));html='<div class="eq-answer eq-nosol">'+T('eqNoSolution')+'</div><div class="eq-block">'+T('eqContradiction')+'</div>';}
-    else {
-        steps.push(S('step_separate',{a:fmtNum(sol.a),negB:fmtNum(-sol.b)}));
-        steps.push(S('step_divide',{negB:fmtNum(-sol.b),a:fmtNum(sol.a)}));
-        if (isInequality) {
-            var flipped=sol.a<0,effectiveOp=op;
-            if(flipped){var flipMap={'>':"<",'<':'>',">=":"<=","<=":">="};effectiveOp=flipMap[op]||op;steps.push(S('step_ineq_flip',{a:fmtNum(sol.a),op:op,newOp:effectiveOp}));}
-            else steps.push(S('step_ineq_keep'));
-            var di=describeInterval(effectiveOp,sol.x); steps.push(S('step_result_ineq',{res:di.res,interval:di.interval}));
-            var opTex={'>':'>','<':'<','>=':'\\geq','<=':'\\leq'}[effectiveOp]||'=';
-            html='<div class="eq-answer">'+KX('x '+opTex+' '+fmtNumTex(sol.x),true)+'</div>';
-            if(di.interval) html+='<div class="eq-block">'+T('eqSolutionSet')+' <strong>'+di.interval+'</strong></div>';
-        } else {
-            steps.push(S('step_result',{x:fmtNum(sol.x)})); steps.push(S('step_verify',{x:fmtNum(sol.x)}));
-            html='<div class="eq-answer">'+KX('x = '+fmtNumTex(sol.x),true)+'</div><div class="eq-block">'+verifyFmt(left,right,sol.x)+'</div>';
-        }
+    var ctx=buildLinearCtx(sol, op, isInequality);
+    if (ctx.aZero) {
+        if (ctx.alwaysTrue) html='<div class="eq-answer eq-check">'+T('eqInfSolutions')+'</div><div class="eq-block">'+T('eqIdentityTrue')+'</div>';
+        else html='<div class="eq-answer eq-nosol">'+T('eqNoSolution')+'</div><div class="eq-block">'+T('eqContradiction')+'</div>';
+    } else if (isInequality) {
+        var opTex={'>':'>','<':'<','>=':'\\geq','<=':'\\leq'}[ctx.effectiveOp]||'=';
+        html='<div class="eq-answer">'+KX('x '+opTex+' '+fmtNumTex(sol.x),true)+'</div>';
+        var di=describeInterval(ctx.effectiveOp,sol.x);
+        if(di.interval) html+='<div class="eq-block">'+T('eqSolutionSet')+' <strong>'+di.interval+'</strong></div>';
+    } else {
+        html='<div class="eq-answer">'+KX('x = '+fmtNumTex(sol.x),true)+'</div><div class="eq-block">'+verifyFmt(left,right,sol.x)+'</div>';
     }
-    displaySteps(steps); finishEqResult(result, html);
+    var linMain=buildLinearTutorSteps(sol,left,right,op,opDisplay,isInequality,ctx);
+    var linAlt=buildLinearBalanceSteps(sol,left,right,op,opDisplay,isInequality,ctx);
+    displaySteps(linMain, linAlt, LT('alt_method_title'), LT('alt_intro'));
+    finishEqResult(result, html);
 }
 
 function solveSystem(eq1,eq2,result) {
@@ -2127,17 +3075,71 @@ function insertEqSym(sym) {
     inp.selectionStart=inp.selectionEnd=s+sym.length; inp.focus();
 }
 
-function displaySteps(steps) {
+function renderStepBlock(step, i, t, depth) {
+    if (typeof step === 'object' && step !== null) {
+        var titleText = step.title || ((t.eq_step_prefix||'Step')+' '+(i+1));
+        if (!titleText && !step.work) return '';
+        var html='<div style="margin-bottom:14px;padding:16px;background:rgba(30,41,59,0.5);border-left:4px solid #6366f1;border-radius:12px;border:1px solid rgba(99,102,241,0.15);">';
+        if (titleText) html+='<div style="font-weight:800;color:#818cf8;margin-bottom:8px;font-size:0.85rem;">'+titleText+'</div>';
+        if (depth==='full' && step.why) html+='<div style="color:#94a3b8;font-size:0.83rem;font-style:italic;margin-bottom:8px;">'+step.why+'</div>';
+        html+='<div style="line-height:1.6;color:#e2e8f0;font-size:0.95rem;">'+step.work+'</div>';
+        if (depth==='full' && step.warning) html+='<div style="margin-top:10px;padding:8px 12px;background:rgba(251,191,36,0.1);border-left:3px solid #fbbf24;border-radius:8px;color:#fbbf24;font-size:0.83rem;">⚠️ '+step.warning+'</div>';
+        html+='</div>';
+        return html;
+    }
+    var fmt=step.replace(/([xX]\s*[=<>]=?\s*[-+]?\d*\.?\d+)/g,'<strong style="color:#22d3ee;text-decoration:underline;">$1</strong>');
+    return '<div style="margin-bottom:14px;padding:16px;background:rgba(30,41,59,0.5);border-left:4px solid #6366f1;border-radius:12px;border:1px solid rgba(99,102,241,0.15);">'
+         + '<div style="font-weight:800;color:#818cf8;margin-bottom:8px;text-transform:uppercase;font-size:0.75rem;letter-spacing:0.1em;">'+(t.eq_step_prefix||'Step')+' '+(i+1)+'</div>'
+         + '<div style="line-height:1.6;color:#e2e8f0;font-size:0.95rem;">'+fmt+'</div></div>';
+}
+
+function displaySteps(steps, altSteps, altSectionTitle, altIntro) {
     var stepsContent=document.getElementById('eq-steps-content'); if(!stepsContent) return;
+    var altContent=document.getElementById('eq-alt-method-content');
+    var depthToggle=document.getElementById('eq-depth-toggle');
     var t=_eqTranslations[MultiCalc.state.currentLang]||_eqTranslations['en'];
+    var depth=MultiCalc.state.eqStepDepth||'full';
+    altIntro = altIntro!==undefined ? altIntro : QT('alt_intro');
+
+    MultiCalc.state.lastEqSteps=steps||null;
+    MultiCalc.state.lastEqAltSteps=altSteps||null;
+    MultiCalc.state.lastEqAltTitle=altSectionTitle||null;
+    MultiCalc.state.lastEqAltIntro=altIntro;
+
+    var hasRich = (steps||[]).some(function(s){ return typeof s==='object' && s!==null; });
+    if (depthToggle) {
+        depthToggle.style.display = hasRich ? 'flex' : 'none';
+        var qBtn0=document.getElementById('eq-depth-quick-btn'), fBtn0=document.getElementById('eq-depth-full-btn');
+        if (qBtn0) qBtn0.textContent = QT('depth_quick');
+        if (fBtn0) fBtn0.textContent = QT('depth_full');
+    }
+
     var html='';
-    steps.forEach(function(step,i){
-        var fmt=step.replace(/([xX]\s*[=<>]=?\s*[-+]?\d*\.?\d+)/g,'<strong style="color:#22d3ee;text-decoration:underline;">$1</strong>');
-        html+='<div style="margin-bottom:14px;padding:16px;background:rgba(30,41,59,0.5);border-left:4px solid #6366f1;border-radius:12px;border:1px solid rgba(99,102,241,0.15);">';
-        html+='<div style="font-weight:800;color:#818cf8;margin-bottom:8px;text-transform:uppercase;font-size:0.75rem;letter-spacing:0.1em;">'+(t.eq_step_prefix||'Step')+' '+(i+1)+'</div>';
-        html+='<div style="line-height:1.6;color:#e2e8f0;font-size:0.95rem;">'+fmt+'</div></div>';
-    });
+    (steps||[]).forEach(function(step,i){ html+=renderStepBlock(step,i,t,depth); });
     stepsContent.innerHTML=html||'<div style="color:#94a3b8;">'+(t.eqNoStepsYet||'Solve an equation to see detailed steps.')+'</div>';
+
+    if (altContent) {
+        if (altSteps && altSteps.length) {
+            var ah='<div style="margin-top:6px;margin-bottom:10px;padding-top:14px;border-top:1px dashed rgba(99,102,241,0.25);">'
+                 + '<div style="font-weight:800;color:#a5b4fc;font-size:0.9rem;margin-bottom:4px;">'+(altSectionTitle||'')+'</div>'
+                 + (depth==='full' ? '<div style="color:#94a3b8;font-size:0.82rem;font-style:italic;margin-bottom:10px;">'+altIntro+'</div>' : '')
+                 + '</div>';
+            altSteps.forEach(function(step,i){ ah+=renderStepBlock(step,i,t,depth); });
+            altContent.innerHTML=ah;
+            altContent.style.display='block';
+        } else {
+            altContent.innerHTML='';
+            altContent.style.display='none';
+        }
+    }
+}
+
+function setEqStepDepth(depth) {
+    MultiCalc.state.eqStepDepth = depth;
+    var qBtn=document.getElementById('eq-depth-quick-btn'), fBtn=document.getElementById('eq-depth-full-btn');
+    if (qBtn) qBtn.classList.toggle('active', depth==='quick');
+    if (fBtn) fBtn.classList.toggle('active', depth==='full');
+    displaySteps(MultiCalc.state.lastEqSteps, MultiCalc.state.lastEqAltSteps, MultiCalc.state.lastEqAltTitle, MultiCalc.state.lastEqAltIntro);
 }
 
 /* ── Plotly graph functions ── */
