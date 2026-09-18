@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MultiCalc — Backup &amp; Restore (standalone test)</title>
+<!--
+╔══════════════════════════════════════════════════════════════════════╗
+║  SYSTEM-01-BACKUP-RESTORE.html                                       ║
+║  Κατηγορία: System (όχι Service) — δεν είναι calculator tool.        ║
+║                                                                        ║
+║  Εξάγει ΟΛΑ τα multicalc_* localStorage keys σε ένα ενιαίο            ║
+║  αρχείο .mcx (custom-alphabet obfuscation, βλ. σχόλια στο script      ║
+║  παρακάτω). Το import κάνει πάντα MERGE, ποτέ αντικατάσταση.          ║
+║                                                                        ║
+║  Standalone testable ακριβώς όπως τα υπόλοιπα modules — ο δικός       ║
+║  του `var MultiCalc = {...}` stub αφαιρείται αυτόματα από το          ║
+║  MULTICALC-APP.html (_stripMultiCalcStub) όταν φορτωθεί μέσα στο app. ║
+╚══════════════════════════════════════════════════════════════════════╝
+-->
+<style>
+/* Ελάχιστο base CSS ώστε το αρχείο να δείχνει σωστά standalone.
+   Ίδιοι κανόνες με το MULTICALC-APP.html — idempotent αν ξαναμπούν. */
+*{box-sizing:border-box;}
+body{margin:0;min-height:100vh;background:#0f172a;color:#fff;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+.screen{display:none;}
+.screen.active{display:block;}
+
+#scr-backup{padding-bottom:40px;max-width:640px;margin:0 auto;}
+
+.backup-header{display:flex;align-items:center;gap:12px;padding:22px 20px 6px;}
+.backup-header .back-btn{background:none;border:none;color:#94a3b8;font-size:1.3rem;
+    cursor:pointer;padding:4px 8px;border-radius:8px;line-height:1;}
+.backup-header .back-btn:hover{background:rgba(255,255,255,0.06);color:#fff;}
+.backup-header h2{font-size:1.25rem;font-weight:700;margin:0;flex:1;}
+.backup-system-tag{font-size:0.6rem;letter-spacing:1.2px;text-transform:uppercase;
+    color:#fdba74;background:rgba(251,146,60,0.14);border:1px solid rgba(251,146,60,0.32);
+    border-radius:20px;padding:4px 10px;white-space:nowrap;}
+
+.backup-section{margin:16px 20px;padding:20px 22px;border-radius:18px;
+    background:rgba(255,255,255,0.03);border:1px solid rgba(148,163,184,0.14);}
+.backup-section h3{margin:0 0 6px;font-size:1.04rem;}
+.backup-section p{margin:0 0 16px;color:#94a3b8;font-size:0.88rem;line-height:1.55;}
+
+.backup-action-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;
+    border-radius:12px;border:none;font-size:0.9rem;font-weight:600;cursor:pointer;color:#fff;
+    background:linear-gradient(135deg,#6366f1,#a855f7);transition:transform .15s ease,opacity .15s ease;}
+.backup-action-btn:hover{transform:translateY(-1px);}
+.backup-action-btn:disabled{opacity:0.32;cursor:not-allowed;transform:none;}
+#backup-export-btn{background:linear-gradient(135deg,#f59e0b,#fb923c);}
+.backup-reload-btn{background:linear-gradient(135deg,#10b981,#34d399)!important;}
+
+.backup-empty-msg{margin-top:12px;font-size:0.82rem;color:#fbbf24;}
+
+.backup-result{margin-top:14px;padding:12px 14px;border-radius:12px;font-size:0.86rem;line-height:1.55;}
+.backup-result p{margin:0 0 8px;color:inherit;}
+.backup-result-ok{background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:#6ee7b7;}
+.backup-result-err{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#f87171;}
+
+.backup-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.62);
+    display:flex;align-items:center;justify-content:center;z-index:9000;padding:20px;}
+.backup-modal{background:#111827;border:1px solid rgba(148,163,184,0.18);border-radius:20px;
+    padding:30px 26px 26px;max-width:380px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,0.5);}
+.backup-modal-icon{font-size:2.1rem;margin-bottom:10px;}
+.backup-modal h3{margin:0 0 16px;font-size:1.12rem;}
+.backup-warning-box{display:flex;gap:10px;text-align:left;background:rgba(251,146,60,0.1);
+    border:1px solid rgba(251,146,60,0.32);border-radius:14px;padding:12px 14px;margin-bottom:22px;}
+.backup-warning-icon{font-size:1.15rem;flex-shrink:0;}
+.backup-warning-box p{margin:0;font-size:0.84rem;color:#fed7aa;line-height:1.5;}
+
+/* ── The System card — deliberately NOT a .menu-card. Distinct
+   orange "workstation" look, injected above the tool grid, not part
+   of it. In standalone preview it just sits in the page for review. ── */
+.system-topcard{display:flex;align-items:center;gap:14px;margin:14px auto 8px;
+    max-width:500px;padding:16px 18px;border-radius:18px;cursor:pointer;
+    background:linear-gradient(135deg,rgba(251,146,60,0.18),rgba(245,158,11,0.08));
+    border:1px solid rgba(251,146,60,0.35);transition:transform .15s ease;}
+.system-topcard:hover{transform:translateY(-1px);}
+.system-topcard-icon{font-size:1.85rem;flex-shrink:0;line-height:1;}
+.system-topcard-text{display:flex;flex-direction:column;}
+.system-topcard-text strong{font-size:1rem;color:#fed7aa;}
+.system-topcard-text span{font-size:0.75rem;color:#fdba74;opacity:0.85;}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ SCREEN ═══════════════════════ -->
+<div class="screen active" id="scr-backup">
+    <div class="backup-header">
+        <button type="button" class="back-btn" aria-label="Πίσω">←</button>
+        <h2 id="backup-screen-title"></h2>
+        <span class="backup-system-tag">SYSTEM</span>
+    </div>
+
+    <!-- Import — πάνω, χρήσιμο και σε καινούρια συσκευή χωρίς τίποτα ακόμα -->
+    <section class="backup-section" id="backup-import-section">
+        <h3 id="backup-import-title"></h3>
+        <p id="backup-import-desc"></p>
+        <input type="file" id="backup-import-file" accept=".mcx" hidden>
+        <button type="button" id="backup-import-btn" class="backup-action-btn"></button>
+        <div class="backup-result" id="backup-import-result" hidden></div>
+    </section>
+
+    <!-- Export — κάτω, disabled αν δεν υπάρχει ακόμα τίποτα να εξαχθεί -->
+    <section class="backup-section" id="backup-export-section">
+        <h3 id="backup-export-title"></h3>
+        <p id="backup-export-desc"></p>
+        <button type="button" id="backup-export-btn" class="backup-action-btn"></button>
+        <div class="backup-empty-msg" id="backup-export-empty" hidden></div>
+    </section>
+</div>
+
+<!-- Success + warning panel, shown right after a successful export -->
+<div class="backup-modal-overlay" id="backup-success-modal" hidden>
+    <div class="backup-modal">
+        <div class="backup-modal-icon">✅</div>
+        <h3 id="backup-success-title"></h3>
+        <div class="backup-warning-box">
+            <span class="backup-warning-icon">⚠️</span>
+            <p id="backup-warning-text"></p>
+        </div>
+        <button type="button" id="backup-success-close" class="backup-action-btn"></button>
+    </div>
+</div>
+
+<!-- Main-menu entry point. In-app, this gets physically relocated to the
+     very top of #scr-menu (above the first .menu-card) by JS below —
+     it is deliberately not one of the tool-grid cards. -->
+<div class="system-topcard" id="system-backup-card" onclick="navTo('scr-backup')">
+    <div class="system-topcard-icon">🧰</div>
+    <div class="system-topcard-text">
+        <strong id="system-card-title"></strong>
+        <span id="system-card-sub"></span>
+    </div>
+</div>
+
+<script>
+/* Local stub for standalone testing — MULTICALC-APP.html strips this
+   exact block (_stripMultiCalcStub) when loading inside the real app,
+   so the protected runtime MultiCalc is used instead. */
+var MultiCalc = {
+    state: { currentLang: 'el', calcHistory: { std: [], sci: [] } },
+    data: {}
+};
+
+(function () {
+
+/* ════════════════════════════════════════════════════════════════
+   1. i18n — αυτόνομο dictionary + lookup, ίδιο πνεύμα με τα QT()/
+      LT()/CT()/AT()/NT()/ST()/PT() του MODULE-02 (κάθε module κρατά
+      το δικό του, μέσα σε IIFE ώστε να μη συγκρούεται globally).
+   ════════════════════════════════════════════════════════════════ */
+var BKT_DICT = {
+    el: {
+        screen_title:      'Backup & Restore Δεδομένων',
+        card_title:        'Εισαγωγή',
+        card_sub:          'Backup & Restore δεδομένων',
+        import_title:      'Εισαγωγή δεδομένων',
+        import_desc:       'Ανέβασε ένα αρχείο .mcx που έχεις εξάγει παλιότερα (από αυτή ή άλλη συσκευή). Τα δεδομένα σου θα προστεθούν σε αυτά που έχεις ήδη — τίποτα δεν διαγράφεται.',
+        import_btn:        'Επιλογή αρχείου .mcx',
+        import_result_ok:  '✅ Η εισαγωγή έγινε: {added} νέα στοιχεία, {merged} συγχωνεύτηκαν. Τα υπάρχοντα δεδομένα σου παραμένουν ακέραια.',
+        import_result_reload: 'Χρειάζεται επανεκκίνηση του MultiCalc για να φανούν τα δεδομένα.',
+        reload_btn:        'Επανεκκίνηση MultiCalc',
+        import_err_format: 'Αυτό δεν είναι αρχείο MultiCalc backup (.mcx).',
+        import_err_decode: 'Το αρχείο δεν μπόρεσε να διαβαστεί — μήπως άλλαξε ή χάλασε;',
+        import_err_generic:'Κάτι πήγε στραβά κατά την εισαγωγή.',
+        export_title:      'Εξαγωγή δεδομένων',
+        export_desc:       'Δημιουργεί ένα αρχείο .mcx με ΟΛΟ το ιστορικό/δεδομένα σου, για να το κρατήσεις σε ασφαλές μέρος ή να το μεταφέρεις σε άλλη συσκευή.',
+        export_btn:        'Εξαγωγή σε αρχείο .mcx',
+        export_empty:      'Δεν υπάρχει ακόμα τίποτα για εξαγωγή — χρησιμοποίησε πρώτα μια αριθμομηχανή.',
+        success_title:     'Η εξαγωγή ολοκληρώθηκε',
+        warning_text:      'Το αρχείο περιέχει τα προσωπικά σου δεδομένα. Είναι κωδικοποιημένο ώστε να μη διαβάζεται εύκολα, αλλά φύλαξέ το σε ασφαλές μέρος — μην το ανεβάσεις δημόσια online.',
+        close_btn:         'Κλείσιμο'
+    },
+    en: {
+        screen_title:      'Backup & Restore',
+        card_title:        'Import',
+        card_sub:          'Backup & Restore your data',
+        import_title:      'Import data',
+        import_desc:       'Upload a .mcx file you exported before (from this or another device). Your data will be added to what you already have — nothing gets deleted.',
+        import_btn:        'Choose .mcx file',
+        import_result_ok:  '✅ Import complete: {added} new items, {merged} merged. Your existing data is untouched.',
+        import_result_reload: 'MultiCalc needs to restart to show the imported data.',
+        reload_btn:        'Restart MultiCalc',
+        import_err_format: "This isn't a MultiCalc backup file (.mcx).",
+        import_err_decode: "This file couldn't be read — did it get modified or corrupted?",
+        import_err_generic:'Something went wrong during import.',
+        export_title:      'Export data',
+        export_desc:       'Creates a .mcx file with ALL your history/data, so you can keep it safe or move it to another device.',
+        export_btn:        'Export to .mcx file',
+        export_empty:      "There's nothing to export yet — use a calculator first.",
+        success_title:     'Export complete',
+        warning_text:      "This file contains your personal data. It's encoded so it isn't easily readable, but keep it somewhere safe — don't upload it publicly online.",
+        close_btn:         'Close'
+    },
+    es: {
+        screen_title:      'Copia de seguridad y restauración',
+        card_title:        'Importar',
+        card_sub:          'Copia de seguridad y restauración',
+        import_title:      'Importar datos',
+        import_desc:       'Sube un archivo .mcx que hayas exportado antes (de este u otro dispositivo). Tus datos se añadirán a los que ya tienes — no se borra nada.',
+        import_btn:        'Elegir archivo .mcx',
+        import_result_ok:  '✅ Importación completa: {added} elementos nuevos, {merged} fusionados. Tus datos existentes no se han tocado.',
+        import_result_reload: 'MultiCalc necesita reiniciarse para mostrar los datos importados.',
+        reload_btn:        'Reiniciar MultiCalc',
+        import_err_format: 'Esto no es un archivo de copia de seguridad de MultiCalc (.mcx).',
+        import_err_decode: '¿No se pudo leer este archivo — se modificó o dañó?',
+        import_err_generic:'Algo salió mal durante la importación.',
+        export_title:      'Exportar datos',
+        export_desc:       'Crea un archivo .mcx con TODO tu historial/datos, para guardarlo a salvo o pasarlo a otro dispositivo.',
+        export_btn:        'Exportar a archivo .mcx',
+        export_empty:      'Todavía no hay nada que exportar — usa primero una calculadora.',
+        success_title:     'Exportación completa',
+        warning_text:      'Este archivo contiene tus datos personales. Está codificado para que no se lea fácilmente, pero guárdalo en un lugar seguro — no lo subas públicamente en línea.',
+        close_btn:         'Cerrar'
+    }
+};
+/** @param {string} key */
+function BKT(key) {
+    var lang = (window.MultiCalc && MultiCalc.state && MultiCalc.state.currentLang) || 'el';
+    var dict = BKT_DICT[lang] || BKT_DICT.el;
+    return (key in dict) ? dict[key] : (BKT_DICT.el[key] || key);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   2. CUSTOM ALPHABET CIPHER — obfuscation, NOT real encryption.
+      1-προς-1 αντικατάσταση χαρακτήρων Base64 → σύμβολα.
+      Ακριβώς το αλφάβητο από το εγκεκριμένο spec (65 σύμβολα:
+      64 Base64 chars + το '=' padding ↔ ⚛).
+   ════════════════════════════════════════════════════════════════ */
+var B64_STD = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+var B64_SYM = "∑∫√πΔ∞±≈∂Ωλθφψ∇⊕⊗∴∵⌀∈∉∅⊂⊃∀∃¬∧∨⊥∥∠⊙⊘↔⇌‡§¶‱ℵℶℓ℮⅍⚭⚮⚯⌬⍺⎔⏣✶✷✸❋❊❉⬡⬢⬣⌘⌗⚛";
+
+var FWD_MAP = {}, REV_MAP = {};
+(function () {
+    var a = Array.from(B64_STD), b = Array.from(B64_SYM);
+    for (var i = 0; i < a.length; i++) { FWD_MAP[a[i]] = b[i]; REV_MAP[b[i]] = a[i]; }
+})();
+
+/** @param {string} b64str */
+function _b64ToSymbols(b64str) {
+    return Array.from(b64str).map(function (ch) {
+        return (ch in FWD_MAP) ? FWD_MAP[ch] : ch;
+    }).join('');
+}
+/** @param {string} symstr */
+function _symbolsToB64(symstr) {
+    return Array.from(symstr).map(function (ch) {
+        return (ch in REV_MAP) ? REV_MAP[ch] : ch;
+    }).join('');
+}
+
+/* UTF-8 safe base64 (TextEncoder/TextDecoder, όχι απλό btoa/atob,
+   γιατί το JSON περιέχει ελληνικά). */
+/** @param {string} str */
+function _utf8ToBase64(str) {
+    var bytes = new TextEncoder().encode(str);
+    var binary = '';
+    for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+}
+/** @param {string} b64 */
+function _base64ToUtf8(b64) {
+    var binary = atob(b64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   3. EXPORT — σαρώνει κάθε localStorage key με πρόθεμα multicalc_
+      (naming convention ήδη σε χρήση, π.χ. multicalc_bmi_weight_history),
+      χωρίς hardcoded λίστα — ό,τι νέο module προστεθεί μπαίνει
+      αυτόματα στο backup.
+   ════════════════════════════════════════════════════════════════ */
+var BACKUP_PREFIX = 'multicalc_';
+var BACKUP_FORMAT  = 'multicalc-backup';
+var BACKUP_VERSION = 1;
+
+function sysBackupHasAnyData() {
+    try {
+        for (var i = 0; i < localStorage.length; i++) {
+            var key = localStorage.key(i);
+            if (key && key.indexOf(BACKUP_PREFIX) === 0) return true;
+        }
+    } catch (e) {}
+    return false;
+}
+
+function sysBackupCollectData() {
+    var out = {};
+    try {
+        for (var i = 0; i < localStorage.length; i++) {
+            var key = localStorage.key(i);
+            if (key && key.indexOf(BACKUP_PREFIX) === 0) {
+                out[key] = localStorage.getItem(key);
+            }
+        }
+    } catch (e) {}
+    return out;
+}
+
+/** Returns the encoded symbol-block ready to write to a .mcx file. */
+function sysBackupExport() {
+    var payload = { _format: BACKUP_FORMAT, _version: BACKUP_VERSION, data: sysBackupCollectData() };
+    var json = JSON.stringify(payload);
+    var b64  = _utf8ToBase64(json);
+    return _b64ToSymbols(b64);
+}
+
+/** @param {string} encodedText */
+function sysBackupDownloadFile(encodedText) {
+    var blob = new Blob([encodedText], { type: 'text/plain;charset=utf-8' });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    var d    = new Date();
+    /** @param {number} n */
+    function pad(n) { return String(n).padStart(2, '0'); }
+    a.href = url;
+    a.download = 'multicalc-backup-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.mcx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   4. IMPORT / MERGE — ΠΟΤΕ αντικατάσταση, πάντα συγχώνευση:
+        array   → concat + αφαίρεση διπλοεγγραφών (by JSON signature)
+        number  → κρατάμε το μεγαλύτερο (max, όχι sum)
+        object  → recursive merge πάνω στους ίδιους κανόνες
+        αλλού (π.χ. απλό string setting όπως γλώσσα/θέμα) → local wins
+      Σημείωση: το πρόθεμα-ανά-τύπο (_hist_/_count_/_pref_) που είχε
+      συζητηθεί ΔΕΝ εφαρμόστηκε — θα σήμαινε rename σε ήδη υπαρκτά
+      keys σε όλα τα modules, invasive αλλαγή που δεν έχει εγκριθεί.
+      Αντ' αυτού γίνεται runtime type-sniffing, γενικό και ασφαλές.
+   ════════════════════════════════════════════════════════════════ */
+
+/** @param {*} localVal @param {*} importedVal */
+function _mergeValue(localVal, importedVal) {
+    if (localVal === undefined || localVal === null) return importedVal;
+    if (importedVal === undefined || importedVal === null) return localVal;
+
+    if (Array.isArray(localVal) && Array.isArray(importedVal)) {
+        var seen = new Set(), merged = [];
+        localVal.concat(importedVal).forEach(function (item) {
+            var sig = JSON.stringify(item);
+            if (!seen.has(sig)) { seen.add(sig); merged.push(item); }
+        });
+        return merged;
+    }
+    if (typeof localVal === 'number' && typeof importedVal === 'number') {
+        return Math.max(localVal, importedVal);
+    }
+    if (typeof localVal === 'object' && typeof importedVal === 'object' &&
+        !Array.isArray(localVal) && !Array.isArray(importedVal)) {
+        var out = {};
+        Object.keys(localVal).forEach(function (k) { out[k] = localVal[k]; });
+        Object.keys(importedVal).forEach(function (k) {
+            out[k] = (k in out) ? _mergeValue(out[k], importedVal[k]) : importedVal[k];
+        });
+        return out;
+    }
+    /* mismatched types or plain scalars (π.χ. raw '"el"' vs κάτι άλλο) → local wins */
+    return localVal;
+}
+
+/** @param {string} fileText */
+function sysBackupParseImportFile(fileText) {
+    var cleaned = (fileText || '').replace(/\s+/g, '');
+    var b64, json, payload;
+    try { b64 = _symbolsToB64(cleaned); } catch (e) { throw new Error('DECODE'); }
+    try { json = _base64ToUtf8(b64); } catch (e) { throw new Error('DECODE'); }
+    try { payload = JSON.parse(json); } catch (e) { throw new Error('DECODE'); }
+    if (!payload || typeof payload !== 'object' || payload._format !== BACKUP_FORMAT) {
+        throw new Error('FORMAT');
+    }
+    return payload;
+}
+
+/** @param {object} importedData */
+function sysBackupMergeImportedData(importedData) {
+    var report = { added: 0, merged: 0, unchanged: 0 };
+    Object.keys(importedData || {}).forEach(function (key) {
+        try {
+            var importedRaw = importedData[key];
+            var localRaw = localStorage.getItem(key);
+
+            if (localRaw === null) {
+                localStorage.setItem(key, importedRaw);
+                report.added++;
+                return;
+            }
+
+            var localParsed, importedParsed, bothParsed = true;
+            try { localParsed = JSON.parse(localRaw); } catch (e) { bothParsed = false; }
+            try { importedParsed = JSON.parse(importedRaw); } catch (e) { bothParsed = false; }
+
+            if (!bothParsed) { report.unchanged++; return; } /* π.χ. raw language/theme code — local wins */
+
+            var mergedVal = _mergeValue(localParsed, importedParsed);
+            localStorage.setItem(key, JSON.stringify(mergedVal));
+            report.merged++;
+        } catch (e) { /* ένα χαλασμένο key δεν μπλοκάρει τα υπόλοιπα */ }
+    });
+    return report;
+}
+
+/** @param {string} code */
+function sysBackupErrMsg(code) {
+    if (code === 'FORMAT') return BKT('import_err_format');
+    if (code === 'DECODE') return BKT('import_err_decode');
+    return BKT('import_err_generic');
+}
+
+/* ════════════════════════════════════════════════════════════════
+   5. UI WIRING
+   ════════════════════════════════════════════════════════════════ */
+/** @param {string} id @param {string} val */
+function _setText(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = val;
+}
+
+function _applyBackupTexts() {
+    _setText('backup-screen-title',  BKT('screen_title'));
+    _setText('system-card-title',    BKT('card_title'));
+    _setText('system-card-sub',      BKT('card_sub'));
+    _setText('backup-import-title',  BKT('import_title'));
+    _setText('backup-import-desc',   BKT('import_desc'));
+    _setText('backup-import-btn',    BKT('import_btn'));
+    _setText('backup-export-title',  BKT('export_title'));
+    _setText('backup-export-desc',   BKT('export_desc'));
+    _setText('backup-export-btn',    BKT('export_btn'));
+    _setText('backup-export-empty',  BKT('export_empty'));
+    _setText('backup-success-title', BKT('success_title'));
+    _setText('backup-warning-text',  BKT('warning_text'));
+    _setText('backup-success-close', BKT('close_btn'));
+}
+
+/** Re-checks the disabled/empty state of Export. Called on init and
+    every time navTo('scr-backup') fires, so it never goes stale. */
+function sysBackupRefreshUI() {
+    var hasData  = sysBackupHasAnyData();
+    var exportBtn = document.getElementById('backup-export-btn');
+    var emptyMsg  = document.getElementById('backup-export-empty');
+    if (exportBtn) exportBtn.disabled = !hasData;
+    if (emptyMsg)  emptyMsg.hidden = hasData;
+    _applyBackupTexts();
+}
+
+function sysBackupShowExportSuccess() {
+    var modal = document.getElementById('backup-success-modal');
+    if (modal) modal.hidden = false;
+}
+function sysBackupCloseModal() {
+    var modal = document.getElementById('backup-success-modal');
+    if (modal) modal.hidden = true;
+}
+
+/** @param {boolean} ok @param {object} report @param {string} errCode */
+function _renderImportResult(ok, report, errCode) {
+    var box = document.getElementById('backup-import-result');
+    if (!box) return;
+    box.hidden = false;
+    if (ok) {
+        var msg = BKT('import_result_ok')
+            .replace('{added}', String(report.added))
+            .replace('{merged}', String(report.merged));
+        box.className = 'backup-result backup-result-ok';
+        box.innerHTML = '<p>' + msg + '</p>' +
+            '<p>' + BKT('import_result_reload') + '</p>' +
+            '<button type="button" id="backup-reload-btn" class="backup-action-btn backup-reload-btn">' +
+            BKT('reload_btn') + '</button>';
+        var rb = document.getElementById('backup-reload-btn');
+        if (rb) rb.addEventListener('click', function () { location.reload(); });
+    } else {
+        box.className = 'backup-result backup-result-err';
+        box.innerHTML = '<p>' + sysBackupErrMsg(errCode) + '</p>';
+    }
+}
+
+function _wireEvents() {
+    var exportBtn = document.getElementById('backup-export-btn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function () {
+            if (!sysBackupHasAnyData()) return; /* guard — button should already be disabled */
+            var encoded = sysBackupExport();
+            sysBackupDownloadFile(encoded);
+            sysBackupShowExportSuccess();
+        });
+    }
+
+    var importBtn  = document.getElementById('backup-import-btn');
+    var importFile = document.getElementById('backup-import-file');
+    if (importBtn && importFile) {
+        importBtn.addEventListener('click', function () { importFile.click(); });
+        importFile.addEventListener('change', function () {
+            var file = importFile.files && importFile.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    var payload = sysBackupParseImportFile(e.target.result);
+                    var report  = sysBackupMergeImportedData(payload.data || {});
+                    _renderImportResult(true, report, null);
+                } catch (err) {
+                    _renderImportResult(false, null, err.message);
+                }
+                importFile.value = '';
+                sysBackupRefreshUI(); /* export may now be enabled if it was empty before */
+            };
+            reader.onerror = function () { _renderImportResult(false, null, 'DECODE'); };
+            reader.readAsText(file, 'UTF-8');
+        });
+    }
+
+    var closeBtn = document.getElementById('backup-success-close');
+    if (closeBtn) closeBtn.addEventListener('click', sysBackupCloseModal);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   6. MENU CARD INJECTION — δεν αγγίζουμε το MODULE-01. Βρίσκουμε
+      το πρώτο .menu-card μέσα στο #scr-menu και βάζουμε την κάρτα
+      μας ΠΡΙΝ από αυτό — πάνω-πάνω, ξεχωριστό από το grid, χωρίς
+      να χρειάζεται να ξέρουμε την εσωτερική δομή του MODULE-01.
+      ΣΗΜΕΙΩΣΗ: αν το MODULE-01 αλλάξει δομή, αξίζει επιβεβαίωση
+      πάνω στο πραγματικό αρχείο — δεν το έχουμε ανοίξει σε αυτό
+      το πέρασμα.
+   ════════════════════════════════════════════════════════════════ */
+function sysBackupInjectMenuCard() {
+    var menuScreen = document.getElementById('scr-menu');
+    var card = document.getElementById('system-backup-card');
+    if (!menuScreen || !card) return; /* standalone mode: δεν υπάρχει scr-menu, η κάρτα μένει εδώ για preview */
+    /* main-menu-grid είναι το πραγματικό id του grid container μέσα στο
+       MODULE-01 (επιβεβαιώθηκε πάνω στο πραγματικό αρχείο) — βάζουμε την
+       κάρτα ΠΡΙΝ από αυτό, σαν sibling μέσα στο #scr-menu, όχι μέσα του.
+       Αυτό την κρατά πάνω-πάνω, standalone, κάτω από το header/λογότυπο
+       αλλά πάνω από το grid των calculator tools — ποτέ μέσα στο grid. */
+    var mainGrid = document.getElementById('main-menu-grid');
+    if (mainGrid && mainGrid.parentElement) {
+        mainGrid.parentElement.insertBefore(card, mainGrid);
+    } else {
+        var firstToolCard = menuScreen.querySelector('.menu-card');
+        if (firstToolCard && firstToolCard.parentElement) {
+            firstToolCard.parentElement.parentElement.insertBefore(card, firstToolCard.parentElement);
+        } else {
+            menuScreen.appendChild(card);
+        }
+    }
+}
+
+/* Ξαναφρεσκάρει το UI (κείμενα + disabled state) κάθε φορά που
+   μπαίνουμε στο scr-backup — ίδιο pattern με το _wrapNavTo() του
+   MULTICALC-APP.html (εκεί για Fun Facts, εδώ για εμάς). Layering-
+   safe: ο orchestrator θα ξανα-τυλίξει το navTo ΠΑΝΩ από αυτό στο
+   δικό του post-load βήμα, οπότε και τα δύο wraps συνυπάρχουν. */
+function _wrapNavToForBackup() {
+    if (typeof window.navTo !== 'function') return;
+    var _orig = window.navTo;
+    window.navTo = function (id, isBack) {
+        if (id === 'scr-backup') sysBackupRefreshUI();
+        return _orig.call(this, id, isBack);
+    };
+}
+
+/* ── Init ── */
+_applyBackupTexts();
+sysBackupRefreshUI();
+_wireEvents();
+sysBackupInjectMenuCard();
+_wrapNavToForBackup();
+
+})();
+</script>
+</body>
+</html>
